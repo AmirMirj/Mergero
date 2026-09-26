@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mergero · What buyers are looking for</title>
+  <meta name="description" content="An anonymised view of what private equity funds, family offices and strategic buyers in the Mergero network are looking for in companies like yours.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #0B1F3A; --navy-600: #16325C; --teal: #0FA3B1; --teal-dark: #0C8A96; --teal-bg: #E6F6F8;
+      --bg: #F4F6F9; --surface: #FFFFFF; --border: #E3E8EF; --border-strong: #CBD5E1; --text: #1A2333;
+      --muted: #64748B; --muted-2: #94A3B8; --green: #15803D; --green-bg: #DCFCE7; --red: #B91C1C; --red-bg: #FEE2E2;
+      --grey-bg: #EEF2F6; --shadow-lg: 0 10px 30px rgba(11, 31, 58, .18);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px; line-height: 1.5; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased;
+    }
+    .page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; background: linear-gradient(180deg, #0B1F3A 0, #0B1F3A 220px, var(--bg) 220px); }
+    .card { width: 100%; max-width: 680px; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-lg); overflow: hidden; }
+    .header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .brand-mark { width: 34px; height: 34px; border-radius: 8px; background: var(--teal); color: #fff; display: grid; place-items: center; font-weight: 700; flex: none; }
+    .header .title { font-weight: 600; color: var(--navy); }
+    .header .sub { font-size: 12.5px; color: var(--muted); }
+    .section { padding: 20px; border-bottom: 1px solid var(--border); }
+    .section:last-child { border-bottom: 0; }
+    .step { font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--teal-dark); font-weight: 600; margin-bottom: 6px; }
+    h2 { font-size: 17px; font-weight: 600; color: var(--navy); margin: 0 0 4px; }
+    .lead { color: var(--muted); margin: 0 0 14px; }
+    .fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .fields.two { grid-template-columns: 1fr 1fr; }
+    .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .field.wide { grid-column: 1 / -1; }
+    .field label { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .field .optional { font-weight: 400; color: var(--muted-2); }
+    select, input, textarea {
+      font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong);
+      border-radius: 6px; padding: 9px 10px; width: 100%; min-height: 40px; outline: none;
+    }
+    select:focus, input:focus, textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(15, 163, 177, .18); }
+    select:disabled, input:disabled, textarea:disabled { background: var(--grey-bg); color: var(--muted); }
+    textarea { resize: vertical; min-height: 84px; }
+    .actions { margin-top: 14px; display: flex; gap: 10px 14px; align-items: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent; border-radius: 6px;
+      padding: 10px 16px; min-height: 40px; font: inherit; font-weight: 600; cursor: pointer; background: var(--teal); color: #fff;
+    }
+    .btn:hover:not(:disabled) { background: var(--teal-dark); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-navy { background: var(--navy); }
+    .btn-navy:hover:not(:disabled) { background: var(--navy-600); }
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error { display: none; margin-top: 12px; padding: 10px 12px; background: var(--red-bg); color: var(--red); border-radius: 8px; font-size: 13px; }
+    .error.show { display: block; }
+    .hint { font-size: 12.5px; color: var(--muted); }
+    .hidden { display: none !important; }
+
+    /* result */
+    .headline { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+    .big { font-size: 52px; font-weight: 700; color: var(--navy); line-height: 1; font-variant-numeric: tabular-nums; }
+    .headline p { margin: 0; font-size: 16px; font-weight: 600; color: var(--navy); max-width: 440px; line-height: 1.4; flex: 1 1 240px; }
+    .band { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+    .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+    .tile { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+    .tile .n { font-size: 22px; font-weight: 700; color: var(--navy); line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .tile .l { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .subhead { font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 600; margin: 16px 0 8px; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--teal-bg); color: var(--teal-dark); border: 1px solid rgba(15, 163, 177, .25); font-weight: 500; }
+    .chip.quiet { background: var(--grey-bg); color: var(--muted); border-color: var(--border); }
+    .soft { margin-top: 12px; padding: 12px 14px; background: var(--teal-bg); border-left: 3px solid var(--teal); border-radius: 0 8px 8px 0; font-size: 13.5px; color: var(--navy); line-height: 1.5; }
+    .quotes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .quotes li { font-size: 13px; color: var(--muted); padding-left: 12px; border-left: 2px solid var(--border-strong); font-style: italic; line-height: 1.5; }
+    .owners { margin-top: 16px; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--green); background: var(--green-bg); padding: 6px 12px; border-radius: 999px; font-weight: 600; }
+    .owners .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex: none; }
+    .note { margin-top: 16px; font-size: 12.5px; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; line-height: 1.55; }
+    .note strong { color: var(--navy); font-weight: 600; }
+    .empty-title { font-size: 16px; font-weight: 600; color: var(--navy); margin: 0 0 4px; }
+    .thanks { padding: 22px; text-align: center; background: var(--green-bg); color: var(--green); font-weight: 600; border-radius: 10px; }
+    .thanks small { display: block; font-weight: 400; margin-top: 6px; }
+    .foot { text-align: center; font-size: 11.5px; color: var(--muted); margin-top: 16px; max-width: 680px; }
+
+    @media (max-width: 640px) {
+      .page { padding: 12px; }
+      .card { border-radius: 10px; }
+      .section { padding: 16px; }
+      .fields, .fields.two { grid-template-columns: 1fr; }
+      .tiles { gap: 8px; }
+      .tile { padding: 10px 10px; }
+      .big { font-size: 44px; }
+      .actions .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="card">
+      <div class="header">
+        <div class="brand-mark">M</div>
+        <div>
+          <div class="title">Mergero · What buyers are looking for</div>
+          <div class="sub">Anonymised demand from buyers in the Mergero network. No names, no sign-up.</div>
+        </div>
+      </div>
+
+      <section class="section" id="step-1">
+        <div class="step">Step 1 · Your company</div>
+        <h2>Three things about your company</h2>
+        <p class="lead">We match them against the active mandates of buyers in our network and show you the picture in aggregate. Nothing you select here is stored.</p>
+        <form id="criteria-form" novalidate>
+          <div class="fields">
+            <div class="field">
+              <label for="country">Country</label>
+              <select id="country" name="country" required></select>
+            </div>
+            <div class="field">
+              <label for="sector">Sector</label>
+              <select id="sector" name="sector"></select>
+            </div>
+            <div class="field">
+              <label for="revenue">Annual revenue</label>
+              <select id="revenue" name="revenue" required></select>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn" id="show-btn">Show buyer demand</button>
+          </div>
+          <div class="error" id="criteria-error" role="alert"></div>
+        </form>
+      </section>
+
+      <section class="section hidden" id="step-2" aria-live="polite">
+        <div class="step">Step 2 · Buyer demand</div>
+        <div id="result"></div>
+      </section>
+
+      <section class="section hidden" id="step-3">
+        <div class="step">Step 3 · Only if you want to</div>
+        <div id="lead-wrap">
+          <h2>Request a confidential conversation</h2>
+          <p class="lead">A Mergero advisor gets back to you personally. No brochure, no mailing list, and nothing moves without your say-so.</p>
+          <form id="lead-form" novalidate>
+            <div class="fields two">
+              <div class="field">
+                <label for="lead-name">Your name</label>
+                <input id="lead-name" name="name" type="text" autocomplete="name" maxlength="120">
+              </div>
+              <div class="field">
+                <label for="lead-company">Company</label>
+                <input id="lead-company" name="company" type="text" autocomplete="organization" maxlength="160" required>
+              </div>
+              <div class="field wide">
+                <label for="lead-email">Email</label>
+                <input id="lead-email" name="email" type="email" autocomplete="email" maxlength="200" required inputmode="email">
+              </div>
+              <div class="field wide">
+                <label for="lead-message">Anything you want us to know <span class="optional">(optional)</span></label>
+                <textarea id="lead-message" name="message" maxlength="2000" placeholder="Timing, what you are hoping for, or a question for us."></textarea>
+              </div>
+            </div>
+            <div class="actions">
+              <button type="submit" class="btn btn-navy" id="lead-btn">Request a conversation</button>
+              <span class="hint">Your details go to one advisor and nowhere else.</span>
+            </div>
+            <div class="error" id="lead-error" role="alert"></div>
+          </form>
+        </div>
+      </section>
+    </div>
+    <div class="foot">Buyer identities are never shown on this page. They come up only in a confidential conversation, on your terms.</div>
+  </div>
+  <script src="/demand.js"></script>
+</body>
+</html>

@@ -21,8 +21,8 @@ Open http://localhost:3000. Demo data (24 fictional prospects, 12 anonymised buy
 1. **Dashboard** – funnel, projected mandates, pending approvals, unhandled replies.
 2. **Prospects** – open a `new` company (or `Import CSV` with `data/sample_prospects.csv`).
 3. **Run full pipeline** – watch the four agents fill the tabs: Profile & signals → Score & why now → Buyer demand → Outreach (each message shows its humanizer score, e.g. "AI-tell 58 → 7").
-4. **Approve / Send** a message (opens your mail client via `mailto:`, marks it sent, stage → contacted).
-5. **Conversation** – paste an owner reply → triage card (intent, extracted facts, next step) + a ready reply draft.
+4. **Approve / Send** a message. With Resend configured it goes out for real and the approved follow-ups are put on the clock; without it, your mail client opens with the message. Either way it is logged and the stage moves to contacted.
+5. **Inbox** – the owner's reply arrives by email (Resend webhook) and shows up already triaged: intent, sentiment, extracted facts, the owner's open questions, next step, and a reply draft to approve. No email set up? Paste the reply on the prospect's Conversation tab instead.
 6. **Owner intake** – generate a link, open it in a new tab as the owner, answer a few questions → structured summary lands back on the company.
 7. **Dashboard → Run pipeline on all NEW prospects** – the scale story; bounded concurrency, live progress.
 
@@ -33,6 +33,26 @@ The floating **🔎 Registry lookup** button queries official open-data company 
 ### Built on Mergero's answers: the playbook
 
 `server/playbook.js` holds what Mergero told us and feeds the agents: the ideal profile (€2–50M revenue, €3–5M valuation floor, majority owner 55+ or facing succession), the mandate path (first touch → owner replied → warm-up → first call booked → engagement letter — the pipeline stages use these names), readiness signals for owners who have *not yet* considered selling, and messaging principles (never "sell" in a first touch, lead with buyer demand, small ask). Next to **Draft outreach** you choose the **conversation framing** — Open conversation (default), Growth capital, Partial / minority stake, or Full sale — and the sequence is written and humanized for that door. The dashboard's **Analyst hours saved** KPI counts the research and first-touch work the agents replaced.
+
+### Seller emails that read as one person writing to one owner
+
+Every seller email goes through a **writer → linter → humanizer → linter** loop. The linter (`server/humanlint.js`) is deterministic and explainable: stock openers and closers, AI vocabulary, em dashes, exclamation marks, lists and formatting, uniform sentence rhythm, over-hedging, flattery, placeholders, mentions of AI or automation, quoting the owner's own financials, "sell" in a first touch, mixed *du/Sie* in German, plus two things only a system can check: a **personalisation audit** (which sourced facts about this company actually appear in the text) and a **reuse check** (wording shared with emails to other prospects). The humanizer receives the findings and rewrites; the card shows a *Human check* score (0 = fully human), the facts used, and what changed. Drafts that still fail cannot be sent, scheduled or used as replies unless the advisor overrides on the card. Paste two or three of your own past emails under **Settings → Your voice** and both agents imitate that voice.
+
+### Both sides, one click
+
+The dashboard suggests **owners to contact next** and **buyers to contact next** (anonymised opportunities from warm owner conversations). **⚡ Pair** pairs a seller with its best-fitting buyer (or a buyer with its best seller) and spells out why: sector/thesis, size, geography, timing, owner situation, deal structure. Accepting a pairing drafts an anonymised buyer note (no name, city, products or figures) that goes through the same approve → send flow. External components (scraper, matcher, mailer) plug in via `docs/integration.md`; mock adapters under **Settings → Integrations** demo the merge.
+
+### Numbers, not adjectives
+
+The dashboard's **Scale numbers** card is measured, not assumed: every Claude call is metered and attributed to the prospect being processed, so it shows API cost per prospect, minutes per prospect and prospects per hour at the current concurrency, plus how many companies each open register can supply (Norway live: ~35,000 AS with 10–250 staff). **What's working** tracks reply, meeting and mandate rates by framing, source and country and feeds them back into the scoring agent and the framing suggestion; until real history exists it blends a clearly labelled sample. For Norwegian companies the owner's age is read from the **Brønnøysund roles register** (CEO and chair with birth dates) instead of guessed from the founding year — automatically on import and before enrichment. Every prospect carries a **source** (prospect database, registry, referral partner, inbound, event) so channels and partnerships can be compared on the same funnel; the owner-facing **/demand** page shows what buyers are looking for in companies like theirs and brings owners in on their own.
+
+### Winning buy-side mandates
+
+**Buy-side mandates** turns a buyer's investment thesis into a mandate pitch in about a minute: the thesis is parsed into criteria and NACE codes, the open registers (Finland, Norway) are scanned, Norwegian owner ages are read from the roles register, every target is scored against the thesis with a one-line reason, and the pitch is written — "we found N unlisted companies matching your thesis, M score 70+, K owners in these sectors are already in confidential conversations with us" — as an email plus a one-pager with anonymised highlights and the proposed exclusive search mandate. The best targets go into the sell-side pipeline with one click, so both sides feed each other.
+
+### Demo mode for real email
+
+Set **Settings → Demo mode: send everything to** (or `DEMO_EMAIL` in `.env`) and every real email the app sends — owner sequences, follow-ups, reply drafts, buyer notes, pitches — goes to that address instead, one per action, with the intended recipient in the subject. Resend's `onboarding@resend.dev` sender needs no domain and delivers only to the account owner, which is what a demo needs.
 
 ## Web research: the company's whole web presence, with sources
 
@@ -48,6 +68,30 @@ The **Web dossier** tab shows everything with source links. **Watch mode** re-cr
 
 > Demo tip: the seed prospects use fictional `*-demo.*` domains, so research on them falls back to web search only. For the full effect, import real companies with **🔎 Registry lookup**. Norway works best, because its registry has the website and the org number that unlocks filed accounts.
 
+## Real email, follow-ups on the clock, and an inbox
+
+Ported from our HMD CRM's email gateway (`email-io/`, comparison in `docs/email-io-repurpose.md`) and moved inside the Express server, so nothing depends on a browser tab being open.
+
+- **Sending.** `Send` delivers through [Resend](https://resend.com) when `RESEND_API_KEY` and `RESEND_FROM` are set (or filled in under Settings → Email delivery). Each email carries its own `Message-ID`; replies are threaded with `In-Reply-To`/`References`. Without Resend, `Send` still opens your mail client with the message and logs it.
+- **Receiving.** Point a Resend webhook at `POST /api/mail/inbound/resend` (events `email.received`, `email.delivered`, `email.bounced`, `email.complained`; paste its signing secret into Settings). Every outbound email uses `owners+<prospect id>@<inbound domain>` as its reply-to, so an owner's reply routes itself; the fallbacks are our own Message-ID in `In-Reply-To` and the sender's address. Anything else lands in the inbox's *Unmatched* queue with suggestions; one click assigns it, triages it and remembers the address.
+- **Triage on arrival.** The reply is logged at once, quoted history and signatures stripped, and the triage agent runs in the background: intent, sentiment (with the trend since the previous reply), extracted facts, the owner's open questions, recommended stage, next step and a drafted reply. The stage moves to *Owner replied* and scheduled follow-ups are cancelled.
+- **Replies move the score.** A reply-understanding agent then reads the owner's own words, in any language, and updates readiness, timing and attractiveness. It shows the exact phrases that moved them ("I turn 63 in spring and none of my children want to take over" → readiness 64 → 84, timing now). Quotes are checked against the email. The Score tab keeps the history of changes.
+- **Follow-ups on the clock.** Approving steps 2 and 3 after step 1 went out schedules them on their day (`send_after_days` from the first send). A sweep every `SEND_SWEEP_MINUTES` (default 1) sends due emails, marks LinkedIn steps and unsendable ones *due* for the advisor, and drops anything the owner has answered. Bounces and complaints stop a sequence and flag the owner's address.
+- **Inbox** (`#/inbox`). One thread per prospect: *Needs reply* (the owner spoke last or a reply is drafted), *Waiting*, *Done*. A reading pane with the conversation, the triage card and the editable reply draft; it refreshes itself. Message statuses run `draft → approved → scheduled → sent → replied | bounced`, plus `rejected` and `cancelled`.
+- **Demo without a domain.** `POST /api/mail/inbound/simulate` (or the MCP tool `mergero_simulate_inbound_email`) feeds an email through the same routing and triage. `POST /api/mail/sweep {"now": "<ISO>"}` pretends it is later and sends the due follow-ups. For a live demo from a phone, run `ngrok http 3000` and paste the ngrok URL into the Resend webhook.
+
+## Advisors send under their own name, within a daily cap
+
+First touches come from the advisor who owns the prospect, not from a shared mailbox. **Settings → Advisors** lists each advisor with their markets and an emails-per-day cap (default 75; Mergero's comfort zone is 50–100 per sender). A prospect is routed to its advisor by country, or picked by hand on the prospect page. The outreach is written, signed and sent as that advisor. Over the cap, an email waits for the next working morning instead of hurting deliverability.
+
+**Dashboard → Outreach capacity** shows each advisor's sends today against their cap and what the team can reach: emails per day, new owners per month and owner conversations per month at Mergero's own benchmark (1,000 contacts → 450–500 conversations). **Queue approved first touches** spreads every approved first email over the advisors' working days, best prospects first.
+
+**Buyers → Sync from MGX** pulls live buyer mandates (sector, size, deal type, geography) from the MGX Deal Engine API when `MGX_API_URL` is set, and a labelled sample otherwise.
+
+## MCP server
+
+`mcp/` exposes the engine to Claude Desktop, Claude Code or any MCP client over stdio: 30 `mergero_*` tools (prospects, registry sourcing, pipeline runs, the approval gate, the inbox, buyers), resources (`mergero://playbook`, `mergero://inbox`, `mergero://prospect/{id}`, …) and prompts (`review_pending_drafts`, `work_the_inbox`, `source_prospects`). Mergero already works Claude → MCP → database; this plugs the engine into that flow. `cd mcp && npm install && npm test`, then `claude mcp add mergero -- node <path>/mcp/index.js`. Details in `mcp/README.md`.
+
 ## Agents (all Claude, `claude-opus-5` by default, structured outputs via Zod)
 
 | Agent | Input | Tools | Output |
@@ -58,7 +102,7 @@ The **Web dossier** tab shows everything with source links. **Watch mode** re-cr
 | Buyer matching | profile + mandates | deterministic prefilter → LLM rerank | ranked buyers with reasons |
 | Outreach writer | profile + score + matches + house style + playbook + framing | – | 3-touch sequence, channel by market (Nordics email, DACH LinkedIn), framed as open / growth / minority / full sale |
 | Humanizer critic | each draft | – | AI-tell flags, rewrite, before/after score |
-| Reply triage | inbound reply + history | – | intent, facts, stage, next step, reply draft |
+| Reply triage | inbound reply (pasted, or received by email) + history | – | intent, sentiment and trend, facts, the owner's open questions, stage, next step, reply draft |
 | Owner intake | chat transcript | – | next question / completed structured summary |
 
 ## Config
@@ -69,5 +113,11 @@ Research settings, all optional:
 - `RESEARCH_MAX_AGE_DAYS` (default 7): how long a company's research is reused.
 - `WATCH_INTERVAL_HOURS` (default 0 = on demand only): how often researched sites are re-crawled.
 - `BROWSER_PATH`: the Chrome/Edge used for JavaScript-only sites (auto-detected when unset).
+
+Real email, all optional and also editable under Settings → Email delivery:
+- `RESEND_API_KEY` and `RESEND_FROM` (a sender on a domain verified in Resend): with both set, `Send` delivers the email itself.
+- `MAIL_INBOUND_DOMAIN`: a domain with receiving enabled in Resend; owner replies go to `owners+<prospect id>@` it and route themselves.
+- `RESEND_WEBHOOK_SECRET`: signing secret of the Resend webhook pointed at `<BASE_URL>/api/mail/inbound/resend`.
+- `SEND_SWEEP_MINUTES` (default 1): how often scheduled follow-ups are sent; 0 leaves it to `POST /api/mail/sweep`.
 
 Data lives in `data/db.json`. Set `DATABASE_URL` to use Postgres instead: the first start migrates the JSON file in, and each save writes only changed rows. `DATA_DIR` points the JSON store elsewhere. API contract: `API.md`.

@@ -24,7 +24,9 @@ async function searchFI({ q, industry_code, city, founded_before, page = 1 }) {
     const cityName = addr?.postOffices?.find((o) => o.languageCode === "1")?.city || addr?.postOffices?.[0]?.city || "";
     return {
       name, country: "FI", city: cityName, website: c.website?.url || "", industry, industry_code: c.mainBusinessLine?.type || "",
-      employees: null, founded: yearOf(c.businessId?.registrationDate || c.registrationDate),
+      // PRH's register starts in 1979: an earlier registration date means "older than the register", not a founding year.
+      employees: null, founded: (() => { const y = yearOf(c.businessId?.registrationDate || c.registrationDate); return y && y > 1978 ? y : null; })(),
+      founded_note: (() => { const y = yearOf(c.businessId?.registrationDate || c.registrationDate); return y && y <= 1978 ? "registered before 1979" : null; })(),
       registry_id: c.businessId?.value || "", source: "Registry: PRH/YTJ (FI)",
     };
   }).filter((r) => r.name);
@@ -60,6 +62,39 @@ async function searchDK({ q }) {
       registry_id: String(data.vat || ""), source: "Registry: CVR (DK)",
     }],
   };
+}
+
+// Real owner age: Brønnøysund lists the CEO (daglig leder), chair and board with birth dates — free, no key.
+const ROLE_LABEL = { DAGL: "CEO (daglig leder)", LEDE: "Chair of the board", NEST: "Deputy chair", MEDL: "Board member", VARA: "Deputy board member", KONT: "Contact person", INNH: "Owner (sole proprietor)" };
+export async function rolesNO(orgnr) {
+  const id = String(orgnr || "").replace(/\D/g, "");
+  if (id.length !== 9) throw Object.assign(new Error("A Norwegian organisation number (9 digits) is required"), { status: 400 });
+  const data = await getJson(`https://data.brreg.no/enhetsregisteret/api/enheter/${id}/roller`);
+  const year = new Date().getFullYear();
+  const people = [];
+  for (const g of data.rollegrupper || []) for (const r of g.roller || []) {
+    if (!r.person || r.avregistrert) continue;
+    const code = r.type?.kode || g.type?.kode;
+    const born = r.person.fodselsdato ? Number(String(r.person.fodselsdato).slice(0, 4)) : null;
+    people.push({ name: [r.person.navn?.fornavn, r.person.navn?.etternavn].filter(Boolean).join(" "), role: ROLE_LABEL[code] || r.type?.beskrivelse || code, role_code: code, birth_year: born, age: born ? year - born : null, since: g.sistEndret || null });
+  }
+  const ceo = people.find((p) => p.role_code === "DAGL") || null;
+  const chair = people.find((p) => p.role_code === "LEDE") || null;
+  return { people, ceo, chair, source: "Brønnøysund roles register", fetched_at: new Date().toISOString() };
+}
+
+// Reach of the open registers for the €2–50M band, using headcount as the proxy the registers can filter on.
+export async function reach() {
+  const out = { as_of: new Date().toISOString(), countries: [] };
+  try {
+    const no = await getJson("https://data.brreg.no/enhetsregisteret/api/enheter?fraAntallAnsatte=10&tilAntallAnsatte=250&organisasjonsform=AS&size=1");
+    out.countries.push({ country: "NO", companies: no.page?.totalElements ?? null, basis: "AS with 10–250 employees (Brønnøysund, live)", live: true });
+  } catch (e) { out.countries.push({ country: "NO", companies: null, basis: `Brønnøysund unavailable: ${e.message}`, live: false }); }
+  out.countries.push({ country: "FI", companies: null, basis: "PRH open data has no size filter; filter by industry code and registration year, size from iXBRL accounts", live: false });
+  out.countries.push({ country: "DK", companies: null, basis: "CVR name lookup only in this build; size from Virk XBRL accounts", live: false });
+  out.countries.push({ country: "SE", companies: null, basis: "No free API (Bolagsverket); import from a prospect database", live: false });
+  out.countries.push({ country: "DE/AT/CH", companies: null, basis: "No free registry API; LinkedIn + calls channel, import from a prospect database", live: false });
+  return out;
 }
 
 export async function search(params) {

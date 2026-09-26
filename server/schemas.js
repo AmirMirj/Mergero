@@ -162,6 +162,28 @@ export const TriageSchema = z.object({
   reply_body: z.string().describe("The reply the advisor should send, in the same language as the inbound message"),
 });
 
+// Reply understanding: what the owner's own words say about readiness and timing, with verbatim evidence.
+export const ReplyScoreSchema = z.object({
+  readiness: z.number().int().min(0).max(100).describe("Updated readiness after reading the reply (0-100), same meaning as in the score"),
+  attractiveness: z.number().int().min(0).max(100).describe("Updated attractiveness to buyers; change only if the reply reveals business facts (size, margins, client concentration)"),
+  recommended_timing: z.enum(["now", "3-6 months", "6-12 months", "not yet"]),
+  reason: z.string().describe("One or two sentences an advisor could say out loud: why the score moved (or did not)"),
+  evidence: z.array(z.object({
+    quote: z.string().describe("Verbatim words from the owner's reply, 3-25 words, copied exactly"),
+    reading: z.string().describe("What this tells us, e.g. 'succession is on his mind', 'timing is 2+ years out'"),
+    effect: z.enum(["raises", "lowers", "neutral"]),
+    weight: z.enum(["high", "medium", "low"]),
+  })).describe("The phrases that drove the change; empty if the reply says nothing about readiness"),
+  signals: z.array(z.object({
+    signal: z.string(),
+    direction: z.enum(["positive", "negative", "neutral"]),
+    weight: z.enum(["high", "medium", "low"]),
+    note: z.string(),
+  })).describe("New readiness signals learned from the reply, in the same form as the score's signals"),
+  risks: z.array(z.string()).describe("New risks or objections raised in the reply"),
+  confidence: z.enum(["high", "medium", "low"]),
+});
+
 export const IntakeTurnSchema = z.object({
   reply: z.string().describe("Next message to the owner. Warm, brief, one question at a time."),
   status: z.enum(["in_progress", "complete"]),

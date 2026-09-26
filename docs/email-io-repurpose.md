@@ -1,5 +1,24 @@
 # Repurposing the HMD CRM and its email gateway for Mergero
 
+## Status, 26 September 2026 evening: P0 and P1 are ported
+
+| Plan item | Where it landed |
+|---|---|
+| Resend send (P0 1–2) | `server/mail.js` `send()`; `deliver()` in `server/index.js` behind `POST /api/messages/:id/send`, with our own `Message-ID`, `In-Reply-To`/`References`, plus-address reply-to and Resend tags; `mailto:` fallback kept |
+| Resend inbound webhook (P0 3) | `POST /api/mail/inbound/resend`: Svix verification, body fetch by id, dedupe by `email_id`, routing plus-address → Message-ID → sender → unmatched queue, then `logInbound` + background `triageEntry` |
+| Inbox route (P0 4) | `#/inbox` in `public/app.js` (`renderInbox`, `drawInbox`, `inboxPaneHtml`) over `GET /api/inbox`; dashboard card links there; nav badge |
+| Demo path (P0 5) | `POST /api/mail/inbound/simulate`, `POST /api/mail/sweep { now }`, `mergero_simulate_inbound_email`; ngrok instructions in README |
+| MCP server (P1 6) | `mcp/` — 30 tools, 5 resources, 3 prompts, `npm test` smoke test |
+| Scheduler + statuses (P1 7) | `scheduleFollowUps`, `cancelFollowUps`, `sweepScheduled` every `SEND_SWEEP_MINUTES`; statuses `scheduled`, `replied`, `bounced`, `cancelled` |
+| Delivery events (P1 8) | `recordDeliveryEvent` on the same webhook; bounces flag `owner.email_status` and cancel the sequence |
+| Dedupe idea, open questions, sentiment trend | `provider_id` dedupe; `TriageSchema.open_questions`; `sentiment_trend` computed against the previous reply |
+
+Verified with an end-to-end script against an isolated instance (`PORT=3100`, `DATA_DIR=./data-test`) and a mock Resend API: 50 checks pass, including signed and unsigned webhooks, duplicate events, plus-address and sender routing, follow-up scheduling and cancellation on reply, bounce handling, the unmatched queue and the MCP smoke test.
+
+Not ported (P2, pilot story): Microsoft Graph mail and calendar connectors, several advisor identities, docker-compose. One design point to know: environment values (`RESEND_*`) fill blank settings, so email cannot be switched off from Settings while `RESEND_API_KEY` is set in `.env`.
+
+---
+
 `email-io/` is a clone of https://github.com/TheShoutingParrot/sentinel-hmd-crm (branch `main`, commit `2f3ded4`, cloned 2026-09-26). It is our own hackathon CRM for HMD Secure. The clone holds no secrets (the only key-shaped string is the Resend placeholder in `functions/local.settings.json.example`). It has its own `.git`; if `mergero/` becomes a repository, either gitignore `email-io/` like `scraper/` or port what we need and delete it.
 
 ## 1. What is in email-io

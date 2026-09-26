@@ -12,6 +12,18 @@ const STAGE_LABELS = {
 // How the owner conversation is framed in outreach. Mergero: owners usually have not considered selling, and growth capital
 // or a minority stake is the softer entry point, so the default is an open conversation, not a sale.
 const FRAMINGS = { open: 'Open conversation', growth: 'Growth capital', minority: 'Partial / minority stake', exit: 'Full sale' };
+// Where a prospect came from — the channel report on the dashboard groups by this.
+const SOURCE_OPTIONS = ['Manual', 'Prospect database import', 'Referral: accountant / auditor', 'Referral: bank SME advisor', 'Referral: succession programme', 'Referral: other partner', 'Inbound enquiry', 'Event / trade fair'];
+function sourceKind(s) {
+  s = String(s || '').toLowerCase();
+  if (s.indexOf('registry') === 0) return 'registry';
+  if (s.indexOf('referral') >= 0 || s.indexOf('partner') >= 0) return 'referral';
+  if (s.indexOf('inbound') >= 0) return 'inbound';
+  if (s.indexOf('scraper') >= 0) return 'scraper';
+  if (s.indexOf('database') >= 0) return 'prospect database';
+  if (s.indexOf('event') >= 0) return 'event';
+  return s ? 'other' : 'manual';
+}
 // Minutes of analyst time each agent step replaces (mirror of server/playbook.js TIME_SAVED_MINUTES).
 const TIME_SAVED_MIN = { research: 30, enrichment: 45, scoring: 15, buyer_matching: 20, outreach_sequence: 40, reply_triage: 10, intake_summary: 30 };
 const STAGE_PILL = {
@@ -31,7 +43,11 @@ const INTENT_PILL = {
   not_now: 'pill pill-amber', not_interested: 'pill pill-red', other: 'pill'
 };
 const SENTIMENT_PILL = { warm: 'pill pill-green', neutral: 'pill', cold: 'pill pill-red' };
-const STATUS_PILL = { draft: 'pill pill-amber', approved: 'pill pill-blue', sent: 'pill pill-green', rejected: 'pill pill-red' };
+// Message lifecycle: draft → approved → (scheduled) → sent → replied | bounced; rejected and cancelled end a message.
+const STATUS_PILL = {
+  draft: 'pill pill-amber', approved: 'pill pill-blue', scheduled: 'pill pill-teal', sent: 'pill pill-green',
+  replied: 'pill pill-solid-green', bounced: 'pill pill-red', cancelled: 'pill', rejected: 'pill pill-red'
+};
 
 /* ================= state ================= */
 const state = {
@@ -44,17 +60,25 @@ const state = {
   company: null,
   tab: 'profile',
   view: 'dashboard',
-  filters: { q: '', stage: '', country: '' },
+  filters: { q: '', stage: '', country: '', source: '' },
+  learning: null,     // from /api/learning
+  reach: null,        // from /api/registry/reach
   running: {},        // company-level actions in flight: { enrich: true }
   msgBusy: {},        // message id -> action name in flight
   editing: {},        // message id -> true when inline editor open
   expanded: {},       // message id -> humanizer details expanded
   outreachLang: 'en',
   outreachFraming: 'open',
+  suggest: null,      // { sellers, buyers, counts } from /api/suggestions
+  pairings: [],       // from /api/pairings
   job: null,
   jobTimer: null,
   intakeUrls: {},
-  watch: null         // { watched, alerts } from /api/watch/alerts
+  watch: null,        // { watched, alerts } from /api/watch/alerts
+  inbox: null,        // { items, counts, unmatched, mail } from /api/inbox
+  inboxFilter: 'needs_reply',
+  inboxTimer: null,
+  mailStatus: null    // /api/mail/status, shown on the settings page
 };
 
 const main = document.getElementById('main');
@@ -265,6 +289,12 @@ function updateBanner() {
   }
 }
 
+function updateNavBadge(n) {
+  const el = document.getElementById('nav-inbox-count');
+  if (!el) return;
+  if (n) { el.textContent = n; el.classList.remove('hidden'); } else el.classList.add('hidden');
+}
+
 /* ================= router ================= */
 function route() {
   const hash = location.hash || '#/dashboard';
@@ -280,6 +310,8 @@ function route() {
     case 'prospects': renderProspects(); break;
     case 'company': renderCompany(parts[1]); break;
     case 'buyers': renderBuyers(); break;
+    case 'buyside': renderBuyside(parts[1]); break;
+    case 'inbox': renderInbox(parts[1]); break;
     case 'settings': renderSettings(); break;
     default: location.hash = '#/dashboard';
   }
@@ -295,12 +327,16 @@ async function renderDashboard() {
   main.innerHTML = pageSkeleton();
   let stats, companies;
   try {
-    const res = await Promise.all([api('/api/stats'), api('/api/companies'), api('/api/watch/alerts?limit=12').catch(function () { return null; })]);
-    stats = res[0]; companies = res[1]; state.watch = res[2];
+    const res = await Promise.all([api('/api/stats'), api('/api/companies'), api('/api/watch/alerts?limit=12').catch(function () { return null; }),
+      api('/api/suggestions').catch(function () { return null; }), api('/api/pairings').catch(function () { return []; }),
+      api('/api/learning').catch(function () { return null; }), api('/api/registry/reach').catch(function () { return null; }),
+      api('/api/advisors/capacity').catch(function () { return null; })]);
+    stats = res[0]; companies = res[1]; state.watch = res[2]; state.suggest = res[3]; state.pairings = res[4] || []; state.learning = res[5]; state.reach = res[6]; state.capacity = res[7];
   } catch (e) { main.innerHTML = errorState(e); return; }
   if (state.view !== 'dashboard') return;
   state.stats = stats || {};
   setCompanies(companies);
+  updateNavBadge(state.stats.replies_unhandled || 0);
   drawDashboard();
 }
 
@@ -315,7 +351,7 @@ function drawDashboard() {
   state.companies.forEach(function (c) {
     (c.messages || []).forEach(function (m) { if (m.status === 'draft') pending.push({ c: c, m: m }); });
   });
-  const replied = state.companies.filter(function (c) { return c.stage === 'replied'; });
+  const replied = state.companies.filter(function (c) { return inboxStatusOf(c) === 'needs_reply'; });
   const jobRunning = state.job && !state.job.finished;
 
   const pendingN = s.messages_pending_approval != null ? s.messages_pending_approval : pending.length;
@@ -342,7 +378,7 @@ function drawDashboard() {
 
   const fa = (state.settings && state.settings.funnel_assumptions) || null;
   const assumptions = fa
-    ? '<div class="small muted mt">Assumptions: contact→reply ' + Math.round(fa.contact_to_reply * 100) + '% · reply→meeting ' +
+    ? '<div class="small muted mt">Assumptions: contact→reply ' + Math.round(fa.contact_to_reply * 100) + '% (Mergero benchmark: 1,000 contacts → 450–500 conversations) · reply→meeting ' +
       Math.round(fa.reply_to_meeting * 100) + '% · meeting→mandate ' + Math.round(fa.meeting_to_mandate * 100) + '%</div>'
     : '';
 
@@ -355,6 +391,9 @@ function drawDashboard() {
     '<div class="run-card"><div><h3>Origination agents</h3><div class="muted small">Research the web presence → enrich → score → match buyers → draft humanized outreach for every prospect at stage <strong>New</strong>. ' +
     (newCount ? plural(newCount, 'prospect') + ' waiting.' : 'No prospects waiting — import more or add one.') + '</div></div>' + runBtn + '</div>' +
     '<div id="job-progress">' + (state.job ? jobProgressHtml(state.job) : '') + '</div>' +
+    capacityCardHtml(state.capacity) +
+    suggestCardHtml() +
+    '<div class="grid-2 mb">' + scaleCardHtml(s.scale) + learningCardHtml() + '</div>' +
     '<div class="grid-2-1">' +
     '<div class="card"><div class="card-head"><div class="card-title">Funnel by stage</div><span class="small muted">' + plural(byStage.disqualified || 0, 'disqualified') + '</span></div>' +
     '<div class="card-body"><div class="funnel">' + funnel + '</div>' + assumptions + '</div></div>' +
@@ -367,13 +406,16 @@ function drawDashboard() {
         '<a class="btn btn-ghost btn-xs" href="#/company/' + attr(p.c.id) + '">Review →</a></div>';
     }).join('') + (pending.length > 8 ? '<div class="small muted mt-sm">+' + (pending.length - 8) + ' more</div>' : '') + '</div>'
       : '<div class="muted small">Nothing waiting. Run the pipeline to draft outreach.</div>') + '</div></div>' +
-    '<div class="card"><div class="card-head"><div class="card-title">Unhandled replies</div><span class="pill ' + (replied.length ? 'pill-amber' : '') + '">' + replied.length + '</span></div>' +
-    '<div class="card-body">' + (replied.length ? '<div class="mini-list">' + replied.map(function (c) {
+    '<div class="card"><div class="card-head"><div class="card-title">Owners waiting for an answer</div><span class="flex" style="gap:8px;align-items:center"><span class="pill ' + (replied.length ? 'pill-amber' : '') + '">' + replied.length + '</span><a class="small" href="#/inbox">Open inbox →</a></span></div>' +
+    '<div class="card-body">' + (replied.length ? '<div class="mini-list">' + replied.slice(0, 8).map(function (c) {
       const last = (c.conversation || []).filter(function (e) { return e.direction === 'inbound'; }).pop();
-      return '<div class="mini-item"><div><a class="t" href="#/company/' + attr(c.id) + '">' + flag(c.country) + ' ' + esc(c.name) + '</a>' +
-        '<div class="s">' + (last ? esc(String(last.text).slice(0, 90)) + (last.text.length > 90 ? '…' : '') : 'Owner replied') + '</div></div>' +
-        '<a class="btn btn-ghost btn-xs" href="#/company/' + attr(c.id) + '">Open →</a></div>';
-    }).join('') + '</div>' : '<div class="muted small">No owner replies waiting for triage.</div>') + '</div></div>' +
+      const t = last && last.triage;
+      return '<div class="mini-item"><div><a class="t" href="#/inbox/' + attr(c.id) + '">' + flag(c.country) + ' ' + esc(c.name) + '</a>' +
+        '<div class="s">' + (t ? '<span class="' + (INTENT_PILL[t.intent] || 'pill') + '">' + esc(humanizeKey(t.intent)) + '</span> ' : '') +
+        (last ? esc(String(last.text).slice(0, 90)) + (last.text.length > 90 ? '…' : '') : 'Reply drafted, not sent') + '</div></div>' +
+        '<a class="btn btn-ghost btn-xs" href="#/inbox/' + attr(c.id) + '">Reply →</a></div>';
+    }).join('') + (replied.length > 8 ? '<div class="small muted mt-sm">+' + (replied.length - 8) + ' more in the inbox</div>' : '') + '</div>'
+      : '<div class="muted small">No owner is waiting. Replies arrive by email (Resend) or are pasted on the prospect.</div>') + '</div></div>' +
     watchCardHtml(jobRunning) +
     '</div></div></div>';
 }
@@ -386,6 +428,158 @@ function alertLine(a, withCompany) {
     '<div class="s">' + (a.signal ? '<span class="pill pill-amber">' + esc(SIGNAL_LABELS[a.signal] || a.signal) + '</span> ' : '') + esc(a.title) +
     ' · <a href="' + attr(a.url) + '" target="_blank" rel="noopener">' + esc(hostOf(a.url)) + ' ↗</a> · ' + fmtShortDate(a.at) + '</div></div></div>';
 }
+/* ---- Suggested outreach: owners to contact next, and buyers to tell about warm opportunities ---- */
+const NEXT_LABEL = { approve_first_touch: 'Approve first touch', send_first_touch: 'Send first touch', draft_outreach: 'Draft outreach', run_pipeline: 'Run pipeline', draft_buyer_note: 'Draft note' };
+const WARM_STAGES = ['replied', 'warming', 'meeting_booked', 'mandate_signed'];
+function suggestCardHtml() {
+  const sg = state.suggest;
+  if (!sg) return '';
+  const sellers = sg.sellers || [], buyers = sg.buyers || [];
+  const sellerHtml = sellers.length ? '<div class="mini-list">' + sellers.slice(0, 6).map(function (x) {
+    return '<div class="mini-item"><div><a class="t" href="#/company/' + attr(x.company_id) + '">' + flag(x.country) + ' ' + esc(x.company_name) + '</a>' +
+      '<div class="s">' + esc(x.why) + '</div></div>' +
+      '<div class="flex" style="gap:6px"><button class="btn btn-secondary btn-xs" data-action="pair" data-company="' + attr(x.company_id) + '" title="Pair with the best-fitting buyer and see why">⚡ Pair</button>' +
+      '<a class="btn btn-ghost btn-xs" href="#/company/' + attr(x.company_id) + '">' + esc(NEXT_LABEL[x.next] || 'Open') + ' →</a></div></div>';
+  }).join('') + '</div>' : '<div class="muted small">Every prospect has been contacted. Import more from the registries.</div>';
+  const buyerHtml = buyers.length ? '<div class="mini-list">' + buyers.slice(0, 6).map(function (x) {
+    return '<div class="mini-item"><div><a class="t" href="#/buyers">' + esc(x.buyer_name) + '</a> <span class="' + (BUYER_TYPE_PILL[x.buyer_type] || 'pill') + '">' + esc(BUYER_TYPES[x.buyer_type] || x.buyer_type) + '</span>' +
+      '<div class="s">' + esc(x.opportunity) + ' · <a href="#/company/' + attr(x.company_id) + '">' + esc(x.company_name) + '</a> · ' + esc(stageLabel(x.stage)) + ' · <strong>' + x.fit + '% fit</strong></div></div>' +
+      '<button class="btn btn-secondary btn-xs" data-action="pair" data-buyer="' + attr(x.buyer_id) + '" data-company="' + attr(x.company_id) + '" title="Pair and see why">⚡ Pair</button></div>';
+  }).join('') + '</div>' : '<div class="muted small">No warm owner conversation to share yet. Buyers are told only once an owner has replied.</div>';
+  return '<div class="card mb"><div class="card-head"><div class="card-title">Suggested outreach · both sides</div>' +
+    '<span class="small muted">' + plural((sg.counts || {}).sellers || 0, 'owner') + ' to contact · ' + plural((sg.counts || {}).buyers || 0, 'buyer') + ' to tell</span></div>' +
+    '<div class="card-body suggest-grid">' +
+    '<div><div class="section-title">Owners to contact next</div>' + sellerHtml + '</div>' +
+    '<div><div class="section-title">Buyers to contact next (anonymised)</div>' + buyerHtml + '</div>' +
+    '</div></div>' + pairingsCardHtml();
+}
+
+/* ---- Advisor capacity: first touches come from each advisor, capped per day for deliverability ---- */
+function capacityCardHtml(cap) {
+  if (!cap || !cap.advisors) return '';
+  const queued = cap.advisors.reduce(function (n, a) { return n + a.first_touches_queued; }, 0);
+  const rows = cap.advisors.map(function (a) {
+    const pctUsed = Math.min(100, Math.round(a.sent_today / Math.max(1, a.daily_cap) * 100));
+    return '<div class="mini-item"><div style="flex:1"><div class="t">' + esc(a.name) + ' <span class="small muted">' + esc((a.markets || []).join(' · ') || 'all markets') + '</span></div>' +
+      '<div class="funnel-bar-wrap mt-sm"><div class="funnel-bar ' + (a.sent_today ? '' : 'zero') + '" style="width:' + Math.max(a.sent_today ? 3 : 0, pctUsed) + '%"></div></div>' +
+      '<div class="s">' + a.sent_today + ' / ' + a.daily_cap + ' emails sent today · ' + plural(a.prospects, 'prospect') + ' · ' + plural(a.first_touches_queued, 'first touch', 'first touches') + ' approved or queued</div></div></div>';
+  }).join('');
+  const row = function (label, value, sub) { return '<div class="kv-item"><div class="kv-key">' + esc(label) + '</div><div class="kv-val">' + esc(value) + '</div>' + (sub ? '<div class="small muted">' + esc(sub) + '</div>' : '') + '</div>'; };
+  return '<div class="card mb"><div class="card-head"><div class="card-title">Outreach capacity · from each advisor</div>' +
+    '<button class="btn btn-primary btn-sm" data-action="queue-first-touches" title="Spread every approved first-touch email over each advisor\'s working day, best prospects first, within the daily cap">⏱ Queue approved first touches' + (queued ? ' (' + queued + ')' : '') + '</button></div>' +
+    '<div class="card-body"><div class="grid-2"><div class="mini-list">' + rows + '</div>' +
+    '<div><div class="buyer-range" style="grid-template-columns:repeat(3,1fr)">' +
+    row('Emails per day', fmtNum(cap.emails_per_day), 'sum of the advisors\' daily caps') +
+    row('New owners / month', fmtNum(cap.new_owners_per_month), 'first touch + 2 follow-ups share the cap') +
+    row('Conversations / month', fmtNum(cap.conversations_per_month), 'at the contact → reply rate') +
+    '</div><div class="small muted mt">' + esc(cap.benchmark) + '. Each advisor sends under their own name; over the cap, emails wait for the next morning. Add advisors or change caps in Settings.</div></div></div></div></div>';
+}
+
+/* ---- Scale numbers: measured cost and speed, and how many companies the open registers reach ---- */
+function scaleCardHtml(sc) {
+  sc = sc || {};
+  const reach = state.reach && state.reach.countries ? state.reach.countries : [];
+  const live = reach.filter(function (r) { return r.live && r.companies != null; });
+  const row = function (label, value, sub) { return '<div class="kv-item"><div class="kv-key">' + esc(label) + '</div><div class="kv-val">' + esc(value) + '</div>' + (sub ? '<div class="small muted">' + esc(sub) + '</div>' : '') + '</div>'; };
+  return '<div class="card"><div class="card-head"><div class="card-title">Scale numbers</div><span class="small muted">' + (sc.prospects_measured ? 'measured on ' + plural(sc.prospects_measured, 'full pipeline run') : 'run the pipeline to measure') + '</span></div>' +
+    '<div class="card-body"><div class="buyer-range" style="grid-template-columns:repeat(3,1fr)">' +
+    row('API cost per prospect', sc.cost_per_prospect_usd != null ? '$' + sc.cost_per_prospect_usd.toFixed(2) : '—', 'research → outreach, all agents') +
+    row('Minutes per prospect', sc.minutes_per_prospect != null ? String(sc.minutes_per_prospect) : '—', 'wall time, one prospect') +
+    row('Prospects per hour', sc.prospects_per_hour_at_3 != null ? fmtNum(sc.prospects_per_hour_at_3) : '—', 'at 3 in parallel; scales with concurrency') +
+    '</div>' +
+    '<div class="small muted mt">Total API spend so far: $' + (sc.api_spend_usd != null ? sc.api_spend_usd.toFixed(2) : '0.00') + '</div>' +
+    (reach.length ? '<div class="section-title mt">Registry reach (companies the engine can pull directly)</div><div class="small">' +
+      reach.map(function (r) { return '<div class="flex space-between" style="gap:8px;padding:3px 0"><span>' + flag(r.country.slice(0, 2)) + ' ' + esc(r.country) + '</span><span class="' + (r.live ? 'strong' : 'muted') + '">' + (r.companies != null ? fmtNum(r.companies) + ' · ' + esc(r.basis) : esc(r.basis)) + '</span></div>'; }).join('') +
+      '</div>' : '') +
+    '</div></div>';
+}
+
+/* ---- Learning loop: what gets replies, meetings and mandates ---- */
+function learningCardHtml() {
+  const L = state.learning;
+  if (!L) return '';
+  const pct = function (x) { return Math.round((x || 0) * 100) + '%'; };
+  const table = function (title, rows, label) {
+    rows = (rows || []).filter(function (r) { return r.n >= 3; }).slice(0, 6);
+    if (!rows.length) return '';
+    return '<div class="section-title mt-sm">' + esc(title) + '</div><table class="table compact"><thead><tr><th>' + esc(label) + '</th><th class="right">n</th><th class="right">Reply</th><th class="right">Meeting</th><th class="right">Mandate</th></tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr><td>' + esc(label === 'Framing' ? (FRAMINGS[r.key] || r.key) : label === 'Country' ? flag(r.key) + ' ' + esc(countryName(r.key)) : humanizeKey(r.key)) + '</td><td class="right">' + r.n + '</td><td class="right strong">' + pct(r.reply_rate) + '</td><td class="right">' + pct(r.meeting_rate) + '</td><td class="right">' + pct(r.mandate_rate) + '</td></tr>'; }).join('') + '</tbody></table>';
+  };
+  return '<div class="card"><div class="card-head"><div class="card-title">What’s working</div><span class="small muted">' + L.overall.n + ' first touches' + (L.sample_included ? ' · includes labelled sample history' : '') + '</span></div>' +
+    '<div class="card-body">' +
+    '<div class="small">Reply ' + pct(L.overall.reply_rate) + ' · meeting ' + pct(L.overall.meeting_rate) + ' · mandate ' + pct(L.overall.mandate_rate) + '. Fed back into the scoring agent and the framing suggestion on each prospect.</div>' +
+    table('By framing', L.by_framing, 'Framing') + table('By source', L.by_source, 'Source') + table('By country', L.by_country, 'Country') +
+    '</div></div>';
+}
+function framingHint(c) {
+  const L = state.learning;
+  if (!L || !c) return '';
+  const bf = L.best_framing_by_country && L.best_framing_by_country[c.country];
+  if (!bf) return '';
+  return ' Best-performing framing in ' + esc(countryName(c.country)) + ' so far: <strong>' + esc(FRAMINGS[bf.framing] || bf.framing) + '</strong> (' + Math.round(bf.reply_rate * 100) + '% replies, n=' + bf.n + ').';
+}
+
+/* ---- Pairings: one click pairs a seller with a buyer, with the reasoning spelled out ---- */
+const PAIR_STATUS_PILL = { proposed: 'pill pill-amber', active: 'pill pill-green', dismissed: 'pill' };
+function pairingsCardHtml() {
+  const list = (state.pairings || []).filter(function (p) { return p.status !== 'dismissed'; });
+  if (!list.length) return '';
+  return '<div class="card mb"><div class="card-head"><div class="card-title">Pairings</div><span class="small muted">' + plural(list.length, 'pairing') + '</span></div>' +
+    '<div class="card-body"><div class="mini-list">' + list.slice(0, 8).map(function (p) {
+      return '<div class="mini-item"><div><a class="t" href="#/company/' + attr(p.company_id) + '">' + flag(p.country) + ' ' + esc(p.company_name) + '</a> <span class="muted">↔</span> <a class="t" href="#/buyers">' + esc(p.buyer_name) + '</a>' +
+        '<div class="s"><strong>' + p.fit + '% fit</strong> · ' + p.rationale.passed + '/' + p.rationale.total + ' checks · ' + esc(FRAMINGS[p.framing] || p.framing) + ' · <span class="' + (PAIR_STATUS_PILL[p.status] || 'pill') + '">' + esc(p.status) + '</span>' +
+        (p.buyer_message_id ? ' · <a href="#/buyers">buyer note drafted →</a>' : '') + '</div></div>' +
+        '<div class="flex" style="gap:6px"><button class="btn btn-ghost btn-xs" data-action="pairing-why" data-id="' + attr(p.id) + '">Why</button>' +
+        (p.status === 'proposed' ? '<button class="btn btn-primary btn-xs" data-action="pairing-accept" data-id="' + attr(p.id) + '">✓ Accept</button>' : '') +
+        '<button class="btn btn-ghost btn-xs" data-action="pairing-dismiss" data-id="' + attr(p.id) + '" title="Dismiss">×</button></div></div>';
+    }).join('') + '</div></div></div>';
+}
+function pairingModal(p) {
+  const r = p.rationale || {};
+  const body = '<div class="pair-head"><div><div class="strong">' + flag(p.country) + ' ' + esc(p.company_name) + '</div><div class="small muted">' + esc(stageLabel(p.stage)) + '</div></div>' +
+    '<div class="pair-arrow">↔</div><div><div class="strong">' + esc(p.buyer_name) + '</div><div class="small muted">' + esc(BUYER_TYPES[p.buyer_type] || p.buyer_type || '') + '</div></div>' +
+    '<div class="pair-fit">' + p.fit + '%<div class="small muted">fit</div></div></div>' +
+    '<p class="mt">' + esc(r.summary || '') + '</p>' +
+    '<div class="check-list">' + (r.checks || []).map(function (c) {
+      return '<div class="check ' + (c.ok ? 'ok' : 'no') + '"><span class="mark">' + (c.ok ? '✔' : '✘') + '</span><div><div class="strong small">' + esc(c.label) + '</div><div class="small">' + esc(c.note) + '</div></div></div>';
+    }).join('') + '</div>' +
+    '<div class="small muted mt">Buyer thesis: ' + esc(r.thesis || '') + '</div>' +
+    '<div class="mt-sm"><span class="section-title">Next</span> ' + esc((p.next_steps || [])[0] || '') + '</div>';
+  const foot = '<button type="button" class="btn btn-ghost" data-action="pairing-dismiss" data-id="' + attr(p.id) + '">Dismiss</button>' +
+    (p.status === 'proposed' ? '<button type="button" class="btn btn-primary" data-action="pairing-accept" data-id="' + attr(p.id) + '">✓ Accept pairing' + (WARM_STAGES.indexOf(p.stage) >= 0 ? ' & draft buyer note' : '') + '</button>'
+      : '<button type="button" class="btn btn-secondary" data-action="close-modal">Close</button>');
+  openModal('Pairing · ' + (r.passed != null ? r.passed + ' of ' + r.total + ' checks pass' : ''), body, foot, { wide: true });
+}
+async function refreshPairings() { state.pairings = await api('/api/pairings').catch(function () { return state.pairings; }); if (state.view === 'dashboard') drawDashboard(); }
+
+/* ---- Buyer-side notes and contacts (shown on the Buyers page) ---- */
+function buyerOppsHtml(b) {
+  const opps = ((state.suggest && state.suggest.buyers) || []).filter(function (x) { return x.buyer_id === b.id; });
+  if (!opps.length) return '';
+  return '<div class="buyer-opps"><div class="kv-key">Opportunities to share</div>' + opps.slice(0, 3).map(function (x) {
+    return '<div class="opp"><div><a href="#/company/' + attr(x.company_id) + '">' + esc(x.company_name) + '</a> <span class="small muted">' + esc(x.opportunity) + ' · ' + esc(stageLabel(x.stage)) + ' · ' + x.fit + '% fit</span></div>' +
+      '<button class="btn btn-secondary btn-xs" data-action="draft-buyer-note" data-buyer="' + attr(b.id) + '" data-company="' + attr(x.company_id) + '">✉ Draft note</button></div>';
+  }).join('') + '</div>';
+}
+function buyerMessagesHtml(b) {
+  const msgs = b.messages || [];
+  if (!msgs.length) return '';
+  return '<div class="buyer-msgs">' + msgs.slice(0, 4).map(function (m) {
+    const status = m.status || 'draft';
+    const c = state.companyMap[m.company_id];
+    return '<div class="buyer-msg" id="bmsg-' + attr(m.id) + '"><div class="flex space-between flex-wrap" style="gap:6px">' +
+      '<div class="small"><strong>To</strong> ' + esc(m.to_name || '') + ' <span class="muted">&lt;' + esc(m.to || '') + '&gt;</span>' + (c ? ' · about <a href="#/company/' + attr(c.id) + '">' + esc(c.name) + '</a>' : '') + '</div>' +
+      '<span class="' + (STATUS_PILL[status] || 'pill') + '">' + esc(status) + '</span></div>' +
+      '<div class="strong mt-sm">' + esc(m.subject || '') + '</div><div class="msg-body small">' + esc(m.body || '') + '</div>' +
+      '<div class="flex mt-sm" style="gap:6px;justify-content:flex-end">' +
+      '<button class="btn btn-ghost btn-xs" data-action="copy-text" data-text="' + attr((m.subject ? 'Subject: ' + m.subject + '\n\n' : '') + (m.body || '')) + '">⧉ Copy</button>' +
+      (status === 'draft' || status === 'approved' ? '<button class="btn btn-danger btn-xs" data-action="buyer-msg-reject" data-id="' + attr(m.id) + '">Reject</button>' : '') +
+      (status === 'draft' ? '<button class="btn btn-secondary btn-xs" data-action="buyer-msg-approve" data-id="' + attr(m.id) + '">✓ Approve</button>' : '') +
+      (status === 'approved' ? '<button class="btn btn-primary btn-xs" data-action="buyer-msg-send" data-id="' + attr(m.id) + '">✉ Send</button>' : '') +
+      '</div></div>';
+  }).join('') + '</div>';
+}
+
 function watchCardHtml(jobRunning) {
   const w = state.watch;
   if (!w) return '';
@@ -497,6 +691,7 @@ function filteredCompanies() {
   return state.companies.filter(function (c) {
     if (f.stage && c.stage !== f.stage) return false;
     if (f.country && c.country !== f.country) return false;
+    if (f.source && sourceKind(c.source) !== f.source) return false;
     if (q) {
       const hay = [c.name, c.industry, c.city, c.website, c.owner && c.owner.name].filter(Boolean).join(' ').toLowerCase();
       if (hay.indexOf(q) === -1) return false;
@@ -521,6 +716,9 @@ function drawProspects() {
     }).join('') + '</select>' +
     '<select class="inline" data-change="filter-country"><option value="">All countries</option>' + countries.map(function (c) {
       return '<option value="' + attr(c) + '"' + (f.country === c ? ' selected' : '') + '>' + flag(c) + ' ' + esc(countryName(c)) + '</option>';
+    }).join('') + '</select>' +
+    '<select class="inline" data-change="filter-source"><option value="">All sources</option>' + Object.keys(state.companies.reduce(function (acc, c) { acc[sourceKind(c.source)] = 1; return acc; }, {})).sort().map(function (k) {
+      return '<option value="' + attr(k) + '"' + (f.source === k ? ' selected' : '') + '>' + esc(humanizeKey(k)) + '</option>';
     }).join('') + '</select>' +
     '<span class="small muted" id="prospect-count">' + plural(state.companies.length, 'company', 'companies') + '</span></div>' +
     '<div class="card"><div class="table-wrap"><table class="table"><thead><tr>' +
@@ -601,6 +799,8 @@ function prospectFormHtml(c) {
     field('EBITDA (€M)', '<input type="number" step="0.1" name="ebitda_m" value="' + (c.ebitda_eur != null ? attr(c.ebitda_eur / 1e6) : '') + '" placeholder="1.1">') +
     field('Employees', '<input type="number" min="0" name="employees" value="' + attr(c.employees) + '">') +
     field('Founded', '<input type="number" min="1800" max="2100" name="founded" value="' + attr(c.founded) + '">') +
+    field('Source', selectHtml('source', SOURCE_OPTIONS.map(function (s) { return [s, s]; }), c.source || 'Manual')) +
+    field('Referred by (partner)', '<input type="text" name="referrer" value="' + attr(c.referrer) + '" placeholder="e.g. accountant, bank SME advisor, Omistajanvaihdos">') +
     '<div class="form-section">Owner</div>' +
     field('Owner name', '<input type="text" name="owner_name" value="' + attr(o.name) + '">') +
     field('Title', '<input type="text" name="owner_title" value="' + attr(o.title) + '" placeholder="CEO & Owner">') +
@@ -621,6 +821,7 @@ function prospectFromForm(fd) {
   const body = {
     name: fd.get('name').trim(), country: fd.get('country'), city: fd.get('city').trim(), website: fd.get('website').trim(),
     industry: fd.get('industry').trim(), ownership_type: fd.get('ownership_type'),
+    source: fd.get('source') || 'Manual', referrer: String(fd.get('referrer') || '').trim(),
     revenue_eur: millions(fd.get('revenue_m')), ebitda_eur: millions(fd.get('ebitda_m')),
     employees: num(fd.get('employees')), founded: num(fd.get('founded')),
     owner: {
@@ -640,6 +841,7 @@ async function renderCompany(id, opts) {
   if (!opts.soft) main.innerHTML = pageSkeleton();
   try {
     const jobs = [api('/api/companies/' + encodeURIComponent(id))];
+    if (!state.learning) api('/api/learning').then(function (L) { state.learning = L; if (state.view === 'company') drawCompany(); }).catch(function () { /* optional */ });
     if (!state.buyersLoaded) jobs.push(api('/api/buyers'));
     const res = await Promise.all(jobs);
     if (res[1]) { state.buyers = res[1]; state.buyersLoaded = true; }
@@ -666,7 +868,16 @@ function actionBtn(name, label, cls, busyLabel) {
     (running ? '<span class="spinner"></span>' + esc(busyLabel || 'Running…') : label) + '</button>';
 }
 
+function advisorPicker(c) {
+  const list = (state.settings && state.settings.advisors) || [];
+  if (list.length < 2) return '';
+  const cur = advisorOf(c);
+  return '<label>Advisor (sends and signs)</label><select data-change="advisor" class="inline">' + list.map(function (a) {
+    return '<option value="' + attr(a.id) + '"' + (cur && cur.id === a.id ? ' selected' : '') + '>' + esc(a.name) + (c.advisor_id ? '' : cur && cur.id === a.id ? ' (by market)' : '') + '</option>';
+  }).join('') + '</select>';
+}
 function drawCompany() {
+  if (state.view === 'inbox') { drawInbox(); return; } // message and reply actions redraw whichever view owns the company
   const c = state.company;
   if (!c) return;
   const o = c.owner || {};
@@ -706,13 +917,15 @@ function drawCompany() {
     '<label>Stage</label><select data-change="stage" class="inline">' + ALL_STAGES.map(function (s) {
       return '<option value="' + s + '"' + (c.stage === s ? ' selected' : '') + '>' + esc(stageLabel(s)) + '</option>';
     }).join('') + '</select>' +
+    advisorPicker(c) +
     '<div class="small muted">Updated ' + fmtDate(c.updated_at) + '</div></div></div>' +
 
     '<div class="toolbar">' +
     '<div class="card owner-card"><div class="owner-avatar">' + esc(initials(o.name)) + '</div><div>' +
     '<div class="owner-name">' + esc(o.name || 'Owner unknown') + '</div><div class="owner-title">' + esc(o.title || '') + '</div>' +
     '<div class="owner-facts">' +
-    (o.age || o.tenure_years ? '<span>' + [o.age ? 'Age ' + o.age : '', o.tenure_years ? o.tenure_years + ' yrs tenure' : ''].filter(Boolean).join(' · ') + '</span>' : '') +
+    (o.age || o.tenure_years ? '<span>' + [o.age ? 'Age ' + o.age + (o.age_source ? ' <span class="pill pill-outline" title="' + attr(o.age_source) + '">register</span>' : '') : '', o.tenure_years ? o.tenure_years + ' yrs tenure' : ''].filter(Boolean).join(' · ') + '</span>' : '') +
+    (c.country === 'NO' && c.registry_id ? '<span><button class="btn btn-ghost btn-xs" data-action="company-action" data-name="people" title="Read CEO and chair with birth dates from Brønnøysund">' + (state.running.people ? '<span class="spinner dark"></span>' : '') + (c.people && c.people.length ? '↻ Register roles (' + c.people.length + ')' : 'Owner age from register') + '</button></span>' : '') +
     (o.email ? '<a href="mailto:' + attr(o.email) + '">' + esc(o.email) + '</a>' : '') +
     (o.linkedin ? '<a href="' + attr(o.linkedin) + '" target="_blank" rel="noopener">LinkedIn profile ↗</a>' : '') +
     '</div></div></div>' +
@@ -729,7 +942,7 @@ function drawCompany() {
     '<select data-change="outreach-lang" title="Outreach language" ' + (anyRunning() ? 'disabled' : '') + '>' + Object.keys(LANGS).map(function (k) {
       return '<option value="' + k + '"' + (state.outreachLang === k ? ' selected' : '') + '>' + esc(LANGS[k]) + '</option>';
     }).join('') + '</select></span>' +
-    '</div>' + (busyRun ? stepperHtml(state.runStep) : '<div class="small muted">Research → enrich → score → match → draft. Research is reused for 7 days; "Research web" refreshes it.</div>') + '</div></div>' +
+    '</div>' + (busyRun ? stepperHtml(state.runStep) : '<div class="small muted">Research → enrich → score → match → draft. Research is reused for 7 days; "Research web" refreshes it.' + framingHint(c) + '</div>') + '</div></div>' +
 
     '<div class="tabs">' + tabs.map(function (t) {
       return '<button class="tab ' + (state.tab === t[0] ? 'active' : '') + '" data-action="tab" data-tab="' + t[0] + '">' + esc(t[1]) +
@@ -945,16 +1158,17 @@ function tabScore(c) {
     '<div class="score-fact"><span class="k">Valuation band</span><span class="v">' + fmtMoney(band.low) + ' – ' + fmtMoney(band.high) + '</span></div>' +
     '<div class="score-fact"><span class="k">Deal size floor</span><span class="v">' + (s.meets_minimum ? '<span class="pill pill-green">Above €3–5M floor</span>' : '<span class="pill pill-red">Below floor</span>') + '</span></div>' +
     '<div class="score-fact"><span class="k">Recommended timing</span><span class="v"><span class="pill ' + timingCls + ' pill-lg">' + esc(s.recommended_timing || '—') + '</span></span></div>' +
-    (s.scored_at ? '<div class="small muted right">Scored ' + fmtDate(s.scored_at) + '</div>' : '') +
+    (s.scored_at ? '<div class="small muted right">Scored ' + fmtDate(s.scored_at) + (s.rescored_at ? ' · updated from a reply ' + fmtDate(s.rescored_at) : '') + '</div>' : '') +
     '</div></div></div>' +
     '<div>' +
+    scoreHistoryHtml(s) +
     '<div class="card"><div class="card-head"><div class="card-title">Why now</div></div><div class="card-body"><div class="why-now">' + esc(s.why_now || '—') + '</div></div></div>' +
     '<div class="card"><div class="card-head"><div class="card-title">Signals behind the score</div></div><div class="card-body tight"><div class="table-wrap"><table class="table compact"><thead><tr><th>Signal</th><th>Dir.</th><th>Weight</th><th>Note</th></tr></thead><tbody>' +
     ((s.signals || []).length ? s.signals.map(function (g) {
       const pos = String(g.direction || '').toLowerCase().indexOf('pos') === 0 || g.direction === '+';
       const neg = String(g.direction || '').toLowerCase().indexOf('neg') === 0 || g.direction === '-';
       const wCls = g.weight === 'high' ? 'pill-navy' : g.weight === 'medium' ? 'pill-blue' : '';
-      return '<tr><td class="strong">' + esc(g.signal) + '</td><td><span class="dir ' + (pos ? 'pos' : neg ? 'neg' : '') + '">' + (pos ? '+' : neg ? '−' : '·') + '</span></td>' +
+      return '<tr><td class="strong">' + esc(g.signal) + (g.source === 'reply' ? ' <span class="pill pill-teal" title="Learned from the owner\'s reply">reply</span>' : '') + '</td><td><span class="dir ' + (pos ? 'pos' : neg ? 'neg' : '') + '">' + (pos ? '+' : neg ? '−' : '·') + '</span></td>' +
         '<td><span class="pill ' + wCls + '">' + esc(g.weight || '—') + '</span></td><td class="muted">' + esc(g.note || '') + '</td></tr>';
     }).join('') : '<tr><td colspan="4" class="muted">No signals recorded.</td></tr>') + '</tbody></table></div></div></div>' +
     '<div class="card"><div class="card-head"><div class="card-title">Risks</div></div><div class="card-body">' + listOrDash(s.risks, 'risk-list') + '</div></div>' +
@@ -971,8 +1185,9 @@ function tabBuyers(c) {
   }
   const buyerById = {};
   state.buyers.forEach(function (b) { buyerById[b.id] = b; });
-  return '<div class="card"><div class="card-body"><div class="headline"><span class="n">' + matches.length + '</span> ' + (matches.length === 1 ? 'buyer' : 'buyers') +
+  return '<div class="card"><div class="card-body"><div class="flex space-between flex-wrap" style="gap:8px"><div class="headline"><span class="n">' + matches.length + '</span> ' + (matches.length === 1 ? 'buyer' : 'buyers') +
     ' in the Mergero network ' + (matches.length === 1 ? 'has' : 'have') + ' appetite for this company</div>' +
+    '<button class="btn btn-primary btn-sm" data-action="pair" data-company="' + attr(c.id) + '">⚡ Pair with best buyer</button></div>' +
     '<div class="small muted mt-sm">Fit reflects sector, geography, size range and thesis alignment with each mandate.</div></div>' +
     '<div class="card-body" style="padding-top:0">' + matches.map(function (m) {
       const b = buyerById[m.buyer_id];
@@ -983,8 +1198,12 @@ function tabBuyers(c) {
         (b && b.geographies ? '<span class="small muted">' + b.geographies.map(flag).join(' ') + '</span>' : '') + '</div>' +
         '<div class="match-reason">' + esc(m.reason || '') + '</div>' +
         (b && b.thesis ? '<div class="small muted mt-sm">Thesis: ' + esc(b.thesis) + '</div>' : '') + '</div>' +
-        '<div class="fit"><div class="fit-num">' + fit + '% fit</div><div class="bar"><div class="bar-fill ' + (fit >= 75 ? 'green' : fit >= 50 ? '' : 'amber') + '" style="width:' + fit + '%"></div></div></div></div>';
-    }).join('') + '</div></div>' + teaserHtml(c);
+        '<div class="fit"><div class="fit-num">' + fit + '% fit</div><div class="bar"><div class="bar-fill ' + (fit >= 75 ? 'green' : fit >= 50 ? '' : 'amber') + '" style="width:' + fit + '%"></div></div>' +
+        (WARM_STAGES.indexOf(c.stage) >= 0 ? '<button class="btn btn-secondary btn-xs mt-sm" data-action="draft-buyer-note" data-buyer="' + attr(m.buyer_id) + '" data-company="' + attr(c.id) + '">✉ Tell this buyer</button>' : '') +
+        '</div></div>';
+    }).join('') + '</div>' +
+    (WARM_STAGES.indexOf(c.stage) >= 0 ? '' : '<div class="card-body small muted" style="padding-top:0">Anonymised buyer notes unlock once the owner has replied; until then nothing about this company goes to buyers.</div>') +
+    '</div>' + teaserHtml(c);
 }
 
 /* ---- Blind teaser for matched buyers (only after the mandate is signed) ---- */
@@ -1008,7 +1227,55 @@ function teaserHtml(c) {
     '<div class="card-foot"><span>Drafted ' + fmtDate(t.drafted_at) + '</span></div></div>';
 }
 
+/* ---- Human-language check: deterministic linter + humanizer, shown on every draft ---- */
+function humanBadge(m, expanded) {
+  const L = m.lint && m.lint.after, h = m.humanizer;
+  if (!L && !h) return '';
+  const score = L ? L.score : (h && h.ai_tell_score_after != null ? h.ai_tell_score_after : null);
+  const before = m.lint && m.lint.before ? m.lint.before.score : (h && h.ai_tell_score_before != null ? h.ai_tell_score_before : null);
+  const grade = L ? L.grade : (score == null ? '' : score <= 15 ? 'human' : score <= 35 ? 'acceptable' : 'robotic');
+  const blocked = L && L.blocks_send && !m.lint_override;
+  const cls = blocked ? 'blocked' : grade === 'human' ? 'good' : grade === 'acceptable' ? 'ok' : 'bad';
+  return '<button class="humanizer-btn ' + cls + '" data-action="toggle-humanizer" data-id="' + attr(m.id) + '" title="Human-language check: lower is more human. Click for details">' +
+    (blocked ? '⛔ ' : grade === 'human' ? '🧬 ' : '🧬 ') + 'Human check ' + (before != null && before !== score ? esc(before) + ' → ' : '') + esc(score != null ? score : '?') +
+    (grade ? ' · ' + esc(grade) : '') + (L && L.personalization ? ' · ' + L.personalization.count + ' specific ' + (L.personalization.count === 1 ? 'fact' : 'facts') : '') +
+    (m.lint_override ? ' · override' : '') + ' ' + (expanded ? '▴' : '▾') + '</button>';
+}
+function humanDetail(m) {
+  const L = m.lint && m.lint.after, h = m.humanizer || {};
+  const sev = { high: 'pill pill-red', medium: 'pill pill-amber', low: 'pill' };
+  let html = '<div class="humanizer-detail">';
+  if (L) {
+    html += '<h5>Linter · ' + plural((L.flags || []).length, 'finding') + (L.metrics ? ' · ' + L.metrics.words + ' words, ' + L.metrics.sentences + ' sentences, avg ' + L.metrics.avg_sentence + ' · rhythm σ ' + L.metrics.rhythm_sd : '') + '</h5>' +
+      ((L.flags || []).length ? '<ul>' + L.flags.map(function (f) { return '<li><span class="' + (sev[f.severity] || 'pill') + '">' + esc(f.rule) + '</span> ' + (f.excerpt ? '<em>“' + esc(f.excerpt) + '”</em> · ' : '') + esc(f.fix || '') + '</li>'; }).join('') + '</ul>' : '<div class="muted">No machine or template tells found.</div>') +
+      '<h5>Personalisation · ' + plural((L.personalization && L.personalization.count) || 0, 'specific fact') + ' used</h5>' +
+      (L.personalization && L.personalization.points && L.personalization.points.length ? '<ul>' + L.personalization.points.map(function (p) { return '<li>' + esc(p.fact) + '</li>'; }).join('') + '</ul>' : '<div class="muted">No sourced fact about this company appears in the text.</div>') +
+      (L.similarity && L.similarity.max >= 0.12 ? '<h5>Reuse</h5><div>' + Math.round(L.similarity.max * 100) + '% of the wording also appears in the email to ' + esc(L.similarity.with) + (L.similarity.shared && L.similarity.shared[0] ? ': <em>“' + esc(L.similarity.shared[0]) + '…”</em>' : '') + '</div>' : '') +
+      (L.blocks_send ? '<div class="mt-sm ' + (m.lint_override ? 'muted' : 'text-red') + '">' + (m.lint_override ? 'Send gate overridden by the advisor.' : '⛔ Sending is blocked until this is fixed.') + ' ' +
+        (m.status !== 'sent' ? '<button class="btn btn-ghost btn-xs" data-action="humanize-message" data-id="' + attr(m.id) + '">↻ Fix with humanizer</button> <button class="btn btn-ghost btn-xs" data-action="lint-override" data-id="' + attr(m.id) + '" data-value="' + (m.lint_override ? '0' : '1') + '">' + (m.lint_override ? 'Remove override' : 'Override and allow sending') + '</button>' : '') + '</div>' : '');
+  }
+  if (h && ((h.flags || []).length || (h.changes || []).length)) {
+    html += '<h5>Humanizer · what it changed (' + ((h.changes || []).length) + ')</h5>' + ((h.changes || []).length ? '<ul>' + h.changes.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>' : '<div class="muted">No changes applied.</div>');
+  }
+  return html + '</div>';
+}
+
 /* ---- Message card (shared by Outreach + Conversation) ---- */
+function advisorOf(c) {
+  const list = (state.settings && state.settings.advisors) || [];
+  if (!c) return list[0] || null;
+  return list.find(function (a) { return a.id === c.advisor_id; }) || list.find(function (a) { return (a.markets || []).indexOf(c.country) >= 0; }) || list[0] || null;
+}
+function messageMeta(m) {
+  const d = m.delivery || null;
+  const via = !d ? '' : d.provider === 'resend' ? ' · by email' + (d.status && d.status !== 'sent' ? ' · ' + humanizeKey(d.status).toLowerCase() : '') + (d.via === 'scheduler' ? ' · scheduler' : '')
+    : d.provider === 'mailto' ? ' · via your mail client' : '';
+  const err = d && d.error ? ' · ⚠ ' + d.error : '';
+  if (m.status === 'scheduled') return (m.due ? 'Due now' : 'Scheduled for ' + fmtDate(m.send_at)) + (m.deferred_reason === 'daily cap' ? ' · held by the advisor\'s daily cap' : '') + err;
+  if (m.status === 'cancelled') return 'Cancelled' + (m.cancel_reason ? ' · ' + m.cancel_reason : '');
+  if (m.sent_at) return 'Sent ' + fmtDate(m.sent_at) + via + err;
+  return m.created_at ? 'Drafted ' + fmtDate(m.created_at) : '';
+}
 function messageCard(m, opts) {
   opts = opts || {};
   const busy = state.msgBusy[m.id];
@@ -1025,15 +1292,25 @@ function messageCard(m, opts) {
     return '<button class="btn ' + cls + ' btn-sm" data-action="' + action + '" data-id="' + attr(m.id) + '" ' + dis + '>' +
       (isBusy ? '<span class="spinner"></span>' : '') + label + '</button>';
   };
+  const done = status === 'sent' || status === 'replied' || status === 'bounced';
+  const seqMsgs = (state.company && state.company.messages) || [];
+  const firstSentAt = seqMsgs.filter(function (x) { return x.step > 0 && x.sent_at; }).map(function (x) { return x.sent_at; }).sort()[0];
+  const ownerReplied = !!firstSentAt && ((state.company && state.company.conversation) || []).some(function (e) { return e.direction === 'inbound' && e.channel !== 'intake' && String(e.at) > String(firstSentAt); });
+  // A seeded or re-approved follow-up whose first touch already went out can still be put on the clock, unless the owner has answered.
+  const canSchedule = status === 'approved' && m.step > 1 && !!firstSentAt && !ownerReplied && m.channel === 'email';
+  const mailOn = !!(state.settings && state.settings.mail && state.settings.mail.configured);
+  const sendLabel = m.channel !== 'email' ? '➤ Mark as sent' : status === 'scheduled' ? '✉ Send now' : mailOn ? '✉ Send' : '✉ Send via mail client';
   const actions = editing
     ? btn('cancel-edit', 'Cancel', 'btn-ghost', true) + btn('save-message', 'Save changes', 'btn-primary', true)
     : btn('copy-message', '⧉', 'btn-ghost btn-icon" title="Copy to clipboard', true) +
-      btn('humanize-message', '↻ Re-humanize', 'btn-ghost', status !== 'sent') +
-      btn('edit-message', '✎ Edit', 'btn-ghost', status !== 'sent') +
-      btn('reject-message', 'Reject', 'btn-danger', status === 'draft' || status === 'approved') +
-      btn('approve-message', '✓ Approve', 'btn-secondary', status === 'draft' || status === 'rejected') +
-      btn('send-message', (m.channel === 'email' ? '✉ Send' : '➤ Mark as sent'), 'btn-primary', status === 'approved');
-  const sender = (state.settings && state.settings.sender) || {};
+      btn('humanize-message', '↻ Re-humanize', 'btn-ghost', !done && status !== 'cancelled') +
+      btn('edit-message', '✎ Edit', 'btn-ghost', !done && status !== 'cancelled') +
+      btn('reject-message', 'Reject', 'btn-danger', status === 'draft' || status === 'approved' || status === 'scheduled') +
+      btn('approve-message', '✓ Approve', 'btn-secondary', status === 'draft' || status === 'rejected' || status === 'cancelled') +
+      btn('schedule-message', '⏱ Schedule', 'btn-secondary', canSchedule) +
+      btn('unschedule-message', 'Cancel schedule', 'btn-ghost', status === 'scheduled') +
+      btn('send-message', sendLabel, 'btn-primary', status === 'approved' || status === 'scheduled');
+  const sender = advisorOf(state.company) || (state.settings && state.settings.sender) || {};
   const owner = (state.company && state.company.owner) || {};
   const mailHead = m.channel === 'email'
     ? '<div class="mail-head">' +
@@ -1049,21 +1326,18 @@ function messageCard(m, opts) {
     '<span class="pill pill-outline">' + esc(LANGS[m.language] || (m.language || 'en').toUpperCase()) + '</span>' +
     (!isReply && m.framing ? '<span class="pill pill-teal" title="How the conversation is framed">' + esc(FRAMINGS[m.framing] || m.framing) + '</span>' : '') +
     '<span class="' + (STATUS_PILL[status] || 'pill') + '">' + esc(status) + '</span>' +
+    (status === 'scheduled' && m.due ? '<span class="pill pill-amber" title="The scheduler could not send this itself; send it by hand">due now</span>' : '') +
     '<span class="spacer"></span>' +
-    (h ? '<button class="humanizer-btn" data-action="toggle-humanizer" data-id="' + attr(m.id) + '" title="Humanizer pass: AI-tell score before → after">🧬 AI-tell score ' +
-      esc(h.ai_tell_score_before != null ? h.ai_tell_score_before : '?') + ' → ' + esc(h.ai_tell_score_after != null ? h.ai_tell_score_after : '?') + ' ' + (expanded ? '▴' : '▾') + '</button>' : '') +
+    humanBadge(m, expanded) +
     '</div>' +
-    (h && expanded ? '<div class="humanizer-detail">' +
-      '<h5>Flags (' + ((h.flags || []).length) + ')</h5>' + ((h.flags || []).length ? '<ul>' + h.flags.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>' : '<div class="muted">No AI tells flagged.</div>') +
-      '<h5>Changes (' + ((h.changes || []).length) + ')</h5>' + ((h.changes || []).length ? '<ul>' + h.changes.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>' : '<div class="muted">No changes applied.</div>') +
-      '</div>' : '') +
+    ((h || (m.lint && m.lint.after)) && expanded ? humanDetail(m) : '') +
     mailHead +
     (editing
       ? '<div class="msg-edit">' + (m.channel === 'email' ? '<input type="text" data-field="subject" value="' + attr(m.subject || '') + '" placeholder="Subject">' : '') +
         '<textarea data-field="body">' + esc(m.body || '') + '</textarea></div>'
       : '<pre class="msg-body">' + esc(m.body || '') + '</pre>') +
     '<div class="msg-actions">' + actions +
-    '<span class="meta">' + (m.sent_at ? 'Sent ' + fmtDate(m.sent_at) : (m.created_at ? 'Drafted ' + fmtDate(m.created_at) : '')) + '</span></div>' +
+    '<span class="meta">' + esc(messageMeta(m)) + '</span></div>' +
     '</div>';
 }
 
@@ -1076,13 +1350,54 @@ function tabOutreach(c) {
       actionBtn('outreach', 'Draft outreach now', 'btn-primary', 'Drafting…')) + '</div>';
   }
   const pending = seq.filter(function (m) { return m.status === 'draft'; }).length;
+  const scheduled = seq.filter(function (m) { return m.status === 'scheduled'; }).length;
+  const due = seq.filter(function (m) { return m.status === 'scheduled' && m.due; }).length;
   return '<div class="flex space-between mb"><div><div class="strong">Outreach sequence · ' + plural(seq.length, 'step') + '</div>' +
-    '<div class="small muted">' + (pending ? plural(pending, 'draft') + ' waiting for your approval. Review, edit if needed, approve, then send.' : 'All drafts reviewed.') + '</div></div>' +
+    '<div class="small muted">' + (pending ? plural(pending, 'draft') + ' waiting for your approval. Review, edit if needed, approve, then send. ' : 'All drafts reviewed. ') +
+    (scheduled ? plural(scheduled, 'follow-up') + ' on the clock' + (due ? ', ' + due + ' due now' : '') + '. Approved follow-ups go out on their day once the first touch is sent; an owner reply stops them.' : 'Approved follow-ups go out on their day once the first touch is sent; an owner reply stops them.') + '</div></div>' +
     '<div class="flex">' + actionBtn('outreach', '↻ Redraft sequence', 'btn-secondary btn-sm', 'Drafting…') + '</div></div>' +
     seq.map(function (m) { return messageCard(m); }).join('');
 }
 
 /* ---- Tab: Conversation ---- */
+/* ---- Reply understanding: how an owner's reply moved the score ---- */
+function scoreMoveHtml(from, to) {
+  if (!to) return '';
+  const d = from && from.readiness != null ? to.readiness - from.readiness : null;
+  const cls = d == null || d === 0 ? '' : d > 0 ? 'pos' : 'neg';
+  return '<span class="score-move ' + cls + '"><span class="muted">Readiness</span> ' + (from && from.readiness != null ? from.readiness + ' → ' : '') + '<strong>' + to.readiness + '</strong>' +
+    (d ? ' <span class="delta">(' + (d > 0 ? '+' : '') + d + ')</span>' : '') + '</span>' +
+    (from && from.recommended_timing && from.recommended_timing !== to.recommended_timing
+      ? '<span class="score-move"><span class="muted">Timing</span> ' + esc(from.recommended_timing) + ' → <strong>' + esc(to.recommended_timing) + '</strong></span>'
+      : '<span class="score-move"><span class="muted">Timing</span> <strong>' + esc(to.recommended_timing || '—') + '</strong></span>');
+}
+function evidenceHtml(list) {
+  if (!list || !list.length) return '';
+  return '<ul class="evidence">' + list.map(function (ev) {
+    return '<li class="' + (ev.effect === 'raises' ? 'pos' : ev.effect === 'lowers' ? 'neg' : '') + '"><span class="q">“' + esc(ev.quote) + '”</span> <span class="muted">' + esc(ev.reading) + '</span></li>';
+  }).join('') + '</ul>';
+}
+function scoreUpdateHtml(e, c) {
+  const u = e.score_update;
+  if (u) {
+    return '<div class="score-update"><div class="score-update-head"><span class="t">Score update</span>' + scoreMoveHtml(u.from, u.to) +
+      '<span class="pill pill-outline" title="How sure the reply agent is">' + esc(u.confidence || '') + ' confidence</span>' +
+      '<button class="btn btn-ghost btn-xs" style="margin-left:auto" data-action="retry-triage" data-company="' + attr(c.id) + '" data-entry="' + attr(e.id) + '" title="Triage and re-score this reply again">↻ Re-analyse</button></div>' +
+      '<div class="small">' + esc(u.reason || '') + '</div>' + evidenceHtml(u.evidence) + '</div>';
+  }
+  if (e.score_update_error) return '<div class="score-update failed"><div class="score-update-head"><span class="t">Score update failed</span><span class="small">' + esc(e.score_update_error) + '</span>' +
+    '<button class="btn btn-secondary btn-xs" style="margin-left:auto" data-action="retry-triage" data-company="' + attr(c.id) + '" data-entry="' + attr(e.id) + '">↻ Retry</button></div></div>';
+  return '';
+}
+function scoreHistoryHtml(s) {
+  const h = (s.history || []).slice().reverse();
+  if (!h.length) return '';
+  return '<div class="card"><div class="card-head"><div class="card-title">Score changes from owner replies</div><span class="small muted">' + plural(h.length, 'reply', 'replies') + ' analysed</span></div><div class="card-body">' +
+    h.map(function (x) {
+      return '<div class="score-hist"><div class="flex flex-wrap" style="gap:10px;align-items:center">' + scoreMoveHtml(x.from, x.to) + '<span class="small muted">' + fmtDate(x.at) + '</span></div>' +
+        '<div class="small mt-sm">' + esc(x.reason || '') + '</div>' + evidenceHtml(x.evidence) + '</div>';
+    }).join('') + '</div></div>';
+}
 function tabConversation(c) {
   const entries = (c.conversation || []).slice().sort(function (a, b) { return new Date(a.at) - new Date(b.at); });
   const msgById = {};
@@ -1096,7 +1411,7 @@ function tabConversation(c) {
       if (reply) linked[reply.id] = true;
       triageHtml = '<div class="triage-card"><div class="triage-head"><span class="t">Triage</span>' +
         '<span class="' + (INTENT_PILL[t.intent] || 'pill') + '">' + esc(humanizeKey(t.intent || 'other')) + '</span>' +
-        '<span class="' + (SENTIMENT_PILL[t.sentiment] || 'pill') + '">' + esc(t.sentiment || 'neutral') + '</span>' +
+        '<span class="' + (SENTIMENT_PILL[t.sentiment] || 'pill') + '" title="Sentiment, and how it moved since the previous reply">' + esc(t.sentiment || 'neutral') + (t.sentiment_trend === 'up' ? ' ↑' : t.sentiment_trend === 'down' ? ' ↓' : '') + '</span>' +
         (t.recommended_stage ? '<span class="small muted">→ recommended stage</span>' + stagePill(t.recommended_stage) : '') +
         (reply ? '<a href="#" class="small" style="margin-left:auto" data-action="scroll-to" data-target="msg-' + attr(reply.id) + '">View reply draft ↓</a>' : '') +
         '</div><div class="triage-body">' +
@@ -1105,13 +1420,23 @@ function tabConversation(c) {
             const cc = f.confidence === 'high' ? 'pill-green' : f.confidence === 'medium' ? 'pill-amber' : '';
             return '<tr><td class="strong">' + esc(humanizeKey(f.field)) + '</td><td>' + esc(formatValue(f.value)) + '</td><td><span class="pill ' + cc + '">' + esc(f.confidence || '—') + '</span></td></tr>';
           }).join('') + '</tbody></table>' : '<div class="muted small">No new facts extracted.</div>') + '</div>' +
-        '<div><h5>Next step</h5><div>' + esc(t.next_step || '—') + '</div></div>' +
-        '</div></div>' +
+        '<div><h5>Next step</h5><div>' + esc(t.next_step || '—') + '</div>' +
+        ((t.open_questions || []).length ? '<h5 class="mt-sm">Owner\'s questions</h5><ul class="open-q">' + t.open_questions.map(function (q) { return '<li>' + esc(q) + '</li>'; }).join('') + '</ul>' : '') + '</div>' +
+        '</div>' + scoreUpdateHtml(e, c) + '</div>' +
         (reply ? '<div class="reply-draft-wrap">' + messageCard(reply) + '</div>' : '');
+    } else if (e.direction === 'inbound' && e.triage_error) {
+      triageHtml = '<div class="triage-card failed"><div class="triage-head"><span class="t">Triage failed</span><span class="small">' + esc(e.triage_error) + '</span>' +
+        '<button class="btn btn-secondary btn-xs" style="margin-left:auto" data-action="retry-triage" data-company="' + attr(c.id) + '" data-entry="' + attr(e.id) + '" ' + (state.running.reply ? 'disabled' : '') + '>' +
+        (state.running.reply ? '<span class="spinner"></span>' : '↻ Retry triage') + '</button></div></div>';
+    } else if (e.direction === 'inbound' && e.channel !== 'intake' && e.source === 'resend') {
+      triageHtml = '<div class="small muted mt-sm"><span class="spinner dark" style="width:10px;height:10px"></span> Triage agent is reading this reply…</div>';
     }
+    const who = e.direction === 'inbound' ? '⬅ ' + (e.from ? esc(e.from) : 'Inbound from owner') : '➡ Outbound';
+    const via = e.direction === 'inbound' ? (e.source === 'resend' ? ' · received by email' : e.source === 'paste' ? ' · pasted' : '')
+      : (e.source === 'resend' ? ' · sent by email' : e.source === 'mailto' ? ' · via mail client' : '');
     return '<div class="tl-entry ' + (e.direction === 'inbound' ? 'inbound' : 'outbound') + '">' +
-      '<div class="bubble">' + esc(e.text || '') + '</div>' +
-      '<div class="tl-meta">' + (e.direction === 'inbound' ? '⬅ Inbound from owner' : '➡ Outbound') + ' · ' + (CHANNEL_ICON[e.channel] || '') + ' ' + esc(CHANNEL_LABEL[e.channel] || e.channel || '') + ' · ' + fmtDate(e.at) + '</div>' +
+      '<div class="bubble">' + (e.direction === 'inbound' && e.subject ? '<div class="strong small" style="margin-bottom:6px">' + esc(e.subject) + '</div>' : '') + esc(e.text || '') + '</div>' +
+      '<div class="tl-meta">' + who + ' · ' + (CHANNEL_ICON[e.channel] || '') + ' ' + esc(CHANNEL_LABEL[e.channel] || e.channel || '') + ' · ' + fmtDate(e.at) + via + '</div>' +
       triageHtml + '</div>';
   }).join('');
   const orphanReplies = (c.messages || []).filter(function (m) { return !m.step && !linked[m.id]; });
@@ -1155,10 +1480,157 @@ function tabIntake(c) {
       '</div></details></div></div>' : '');
 }
 
+/* ================= INBOX ================= */
+// One thread per prospect. Owner replies arrive here by email (Resend webhook) already triaged, with a reply drafted.
+// Mirror of server/db.js inboxStatus: who spoke last decides whether the owner is waiting on us.
+function inboxStatusOf(c) {
+  const conv = c.conversation || [], msgs = c.messages || [];
+  if (!conv.length && !msgs.some(function (m) { return m.status === 'scheduled'; })) return null;
+  if (c.stage === 'disqualified' || c.stage === 'mandate_signed') return 'done';
+  if (msgs.some(function (m) { return !m.step && (m.status === 'draft' || m.status === 'approved'); })) return 'needs_reply';
+  const last = conv.slice().sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); }).pop();
+  if (last && last.direction === 'inbound' && last.channel !== 'intake') return 'needs_reply';
+  return 'waiting';
+}
+
+async function renderInbox(selectedId) {
+  if (!state.inbox) main.innerHTML = pageSkeleton();
+  try {
+    const jobs = [api('/api/inbox'), api('/api/companies')];
+    if (selectedId) jobs.push(api('/api/companies/' + encodeURIComponent(selectedId)));
+    const res = await Promise.all(jobs);
+    state.inbox = res[0];
+    setCompanies(res[1]);
+    if (res[2]) { state.company = res[2]; state.companyMap[res[2].id] = res[2]; }
+    else state.company = null;
+  } catch (e) { main.innerHTML = errorState(e); return; }
+  if (state.view !== 'inbox') return;
+  if (!state.company && state.inbox.items.length) {
+    const first = inboxVisibleItems()[0] || state.inbox.items[0];
+    if (first) { location.hash = '#/inbox/' + first.company_id; return; }
+  }
+  updateNavBadge(state.inbox.counts.needs_reply);
+  drawInbox();
+  scheduleInboxPoll();
+}
+
+// The inbox stays live: a reply that lands through the webhook shows up without a manual refresh.
+function scheduleInboxPoll() {
+  clearTimeout(state.inboxTimer);
+  const pending = state.inbox && state.inbox.items.some(function (i) { return i.triage_pending; });
+  state.inboxTimer = setTimeout(async function () {
+    if (state.view !== 'inbox') return;
+    await refreshInbox();
+    scheduleInboxPoll();
+  }, pending ? 4000 : 20000);
+}
+async function refreshInbox() {
+  try {
+    const jobs = [api('/api/inbox')];
+    if (state.company) jobs.push(api('/api/companies/' + encodeURIComponent(state.company.id)));
+    const res = await Promise.all(jobs);
+    if (state.view !== 'inbox') return;
+    state.inbox = res[0];
+    const idle = !Object.keys(state.editing).length && !Object.keys(state.msgBusy).length && !Object.keys(state.running).length;
+    if (res[1] && idle && state.company && res[1].id === state.company.id) setCompany(res[1]);
+    updateNavBadge(state.inbox.counts.needs_reply);
+    // Never redraw under the advisor's cursor: a half-written reply would be lost.
+    const a = document.activeElement;
+    if (a && main.contains(a) && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT' || a.tagName === 'SELECT')) return;
+    drawInbox();
+  } catch (e) { /* keep the current view; the next poll retries */ }
+}
+
+function inboxVisibleItems() {
+  const items = (state.inbox && state.inbox.items) || [];
+  return state.inboxFilter === 'all' ? items : items.filter(function (i) { return i.status === state.inboxFilter; });
+}
+
+function drawInbox() {
+  const inbox = state.inbox || { items: [], counts: {}, unmatched: [], mail: {} };
+  const counts = inbox.counts || {};
+  const items = inboxVisibleItems();
+  const sel = state.company;
+  const mailS = inbox.mail || {};
+  const filters = [['needs_reply', 'Needs reply', counts.needs_reply], ['waiting', 'Waiting', counts.waiting], ['done', 'Done', counts.done], ['all', 'All', (inbox.items || []).length]];
+  const list = items.length ? items.map(inboxItemHtml).join('')
+    : '<div class="empty" style="padding:28px 14px"><div class="empty-icon">📭</div><div class="empty-title">Nothing here</div><p>' +
+      (state.inboxFilter === 'needs_reply' ? 'No owner is waiting for an answer.' : 'No conversations in this view.') + '</p></div>';
+  const mailLine = '<span class="mail-status"><span class="dot ' + (mailS.configured ? 'on' : '') + '"></span>' +
+    (mailS.configured
+      ? 'Real email on · from ' + esc(mailS.from || '') + (mailS.inbound_domain ? ' · replies to owners+&lt;id&gt;@' + esc(mailS.inbound_domain) : '') + (mailS.scheduled ? ' · ' + plural(mailS.scheduled, 'follow-up') + ' on the clock' : '')
+      : 'Real email off · Send opens your mail client · <a href="#/settings">configure Resend →</a>') + '</span>';
+  main.innerHTML =
+    topbar('Inbox', crumb([{ label: 'Mergero', href: '#/dashboard' }, { label: 'Inbox' }]), mailLine + '<button class="btn btn-secondary" data-action="inbox-refresh">Refresh</button>') +
+    '<div class="content"><div class="inbox-layout">' +
+    '<div class="card"><div class="inbox-filters">' + filters.map(function (f) {
+      return '<button class="tab ' + (state.inboxFilter === f[0] ? 'active' : '') + '" data-action="inbox-filter" data-filter="' + f[0] + '">' + esc(f[1]) + (f[2] ? '<span class="tab-count">' + f[2] + '</span>' : '') + '</button>';
+    }).join('') + '</div><div class="inbox-list">' + list + '</div>' + unmatchedHtml(inbox.unmatched || []) + '</div>' +
+    '<div class="inbox-pane">' + (sel ? inboxPaneHtml(sel, inbox)
+      : '<div class="card">' + emptyState('💬', 'Select a conversation', 'Owner replies land here the moment they arrive, already triaged, with a reply drafted for your approval.') + '</div>') + '</div>' +
+    '</div></div>';
+}
+
+function inboxItemHtml(i) {
+  const active = state.company && state.company.id === i.company_id;
+  const t = i.triage;
+  const trend = t && t.sentiment_trend === 'up' ? ' ↑' : t && t.sentiment_trend === 'down' ? ' ↓' : '';
+  return '<a class="inbox-item ' + (active ? 'active' : '') + '" href="#/inbox/' + attr(i.company_id) + '">' +
+    '<div class="row"><span class="who">' + flag(i.country) + ' ' + esc(i.name) + '</span><span class="when">' + esc(fmtShortDate(i.last_at)) + '</span></div>' +
+    '<div class="snippet">' + (i.last_direction === 'inbound' ? '⬅ ' : i.last_direction === 'outbound' ? '➡ ' : '') + esc(i.last_text || '') + '</div>' +
+    '<div class="tags">' + stagePill(i.stage) +
+    (t ? '<span class="' + (INTENT_PILL[t.intent] || 'pill') + '">' + esc(humanizeKey(t.intent)) + '</span><span class="' + (SENTIMENT_PILL[t.sentiment] || 'pill') + '">' + esc(t.sentiment) + trend + '</span>' : '') +
+    (i.triage_pending ? '<span class="pill pill-amber">triaging…</span>' : '') +
+    (i.triage_error ? '<span class="pill pill-red" title="' + attr(i.triage_error) + '">triage failed</span>' : '') +
+    (i.reply_draft ? '<span class="pill pill-teal">reply drafted</span>' : '') +
+    (i.due ? '<span class="pill pill-amber">' + plural(i.due, 'follow-up') + ' due</span>' : i.scheduled ? '<span class="pill pill-outline">' + plural(i.scheduled, 'follow-up') + ' on the clock</span>' : '') +
+    (i.owner && i.owner.email_status === 'bounced' ? '<span class="pill pill-red">email bounced</span>' : '') +
+    '</div></a>';
+}
+
+function unmatchedHtml(list) {
+  if (!list.length) return '';
+  const all = state.companies.slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+  return '<div class="card-head" style="border-top:1px solid var(--border)"><div class="card-title">Unmatched inbound</div><span class="pill pill-amber">' + list.length + '</span></div><div class="card-body">' +
+    '<div class="small muted mb">Emails no rule could place: not sent to a prospect\'s reply address and not from a known owner address. Pick the prospect; the address is remembered.</div>' +
+    list.map(function (u) {
+      const sugg = u.suggestions || [];
+      return '<div class="unmatched-item"><div class="from">' + esc(u.from || 'Unknown sender') + '</div>' +
+        '<div class="small muted">' + esc(u.subject || '(no subject)') + ' · ' + fmtDate(u.at) + '</div>' +
+        '<div class="snippet">' + esc(String(u.text || '').slice(0, 160)) + '</div>' +
+        '<div class="assign"><select data-unmatched="' + attr(u.id) + '">' +
+        (sugg.length ? '<optgroup label="Suggested">' + sugg.map(function (s) { return '<option value="' + attr(s.company_id) + '">' + esc(s.name) + '</option>'; }).join('') + '</optgroup>' : '') +
+        '<optgroup label="All prospects">' + all.map(function (c) { return '<option value="' + attr(c.id) + '">' + esc(c.name) + '</option>'; }).join('') + '</optgroup></select>' +
+        '<button class="btn btn-primary btn-sm" data-action="assign-unmatched" data-id="' + attr(u.id) + '">Assign & triage</button>' +
+        '<button class="btn btn-ghost btn-sm" data-action="discard-unmatched" data-id="' + attr(u.id) + '">Discard</button></div></div>';
+    }).join('') + '</div>';
+}
+
+function inboxPaneHtml(c, inbox) {
+  const o = c.owner || {};
+  const item = (inbox.items || []).find(function (i) { return i.company_id === c.id; }) || {};
+  const t = item.triage;
+  const statusPill = item.status === 'needs_reply' ? 'pill pill-amber' : item.status === 'waiting' ? 'pill pill-blue' : 'pill';
+  return '<div class="card"><div class="card-body"><div class="inbox-head"><h2>' + flag(c.country) + ' ' + esc(c.name) + '</h2>' + stagePill(c.stage) + channelBadge(c.channel) +
+    (item.status ? '<span class="' + statusPill + '">' + esc(humanizeKey(item.status)) + '</span>' : '') +
+    '<span class="spacer"></span>' +
+    '<a class="btn btn-ghost btn-sm" href="#/company/' + attr(c.id) + '">Open prospect →</a>' +
+    (c.stage !== 'disqualified' && c.stage !== 'mandate_signed' ? '<button class="btn btn-danger btn-sm" data-action="inbox-disqualify" data-id="' + attr(c.id) + '">Disqualify</button>' : '') + '</div>' +
+    '<div class="small muted mt-sm">' + esc(o.name || 'Owner unknown') + (o.title ? ' · ' + esc(o.title) : '') + (o.email ? ' · ' + esc(o.email) : '') +
+    (o.email_status === 'bounced' ? ' · <span class="text-red">email bounced</span>' : '') + (c.score ? ' · readiness ' + esc(c.score.readiness) : '') + '</div>' +
+    (t && t.next_step ? '<div class="mt-sm"><strong>Next step:</strong> ' + esc(t.next_step) + '</div>' : '') +
+    '</div></div>' +
+    tabConversation(c);
+}
+
 /* ================= BUYERS ================= */
 async function renderBuyers() {
   main.innerHTML = pageSkeleton();
-  try { state.buyers = await api('/api/buyers'); state.buyersLoaded = true; }
+  try {
+    const res = await Promise.all([api('/api/buyers'), api('/api/suggestions').catch(function () { return null; }), state.companies.length ? null : api('/api/companies').catch(function () { return null; })]);
+    state.buyers = res[0]; state.buyersLoaded = true; state.suggest = res[1] || state.suggest;
+    if (res[2]) setCompanies(res[2]);
+  }
   catch (e) { main.innerHTML = errorState(e); return; }
   if (state.view !== 'buyers') return;
   drawBuyers();
@@ -1168,9 +1640,12 @@ function drawBuyers() {
   const buyers = state.buyers || [];
   const active = buyers.filter(function (b) { return b.active !== false; }).length;
   main.innerHTML =
-    topbar('Buyer mandates', crumb([{ label: 'Mergero', href: '#/dashboard' }, { label: 'Buyers' }]), '<button class="btn btn-primary" data-action="open-add-buyer">+ Add buyer</button>') +
+    topbar('Buyer mandates', crumb([{ label: 'Mergero', href: '#/dashboard' }, { label: 'Buyers' }]),
+      '<button class="btn btn-secondary" data-action="mgx-sync" title="Query live buyer mandates from the MGX Deal Engine (sector, size, deal type, geography)">⟳ Sync from MGX</button>' +
+      '<button class="btn btn-primary" data-action="open-add-buyer">+ Add buyer</button>') +
     '<div class="content">' +
-    '<div class="flex space-between mb"><div class="muted">' + plural(buyers.length, 'mandate') + ' in the Mergero network · <span class="strong text-green">' + active + ' active</span></div></div>' +
+    '<div class="flex space-between mb"><div class="muted">' + plural(buyers.length, 'mandate') + ' in the Mergero network · <span class="strong text-green">' + active + ' active</span>' +
+    (buyers.some(function (b) { return b.mgx_id; }) ? ' · ' + buyers.filter(function (b) { return b.mgx_id; }).length + ' from MGX' : '') + '</div></div>' +
     (buyers.length ? '<div class="buyer-grid">' + buyers.map(buyerCard).join('') + '</div>'
       : '<div class="card">' + emptyState('🏦', 'No buyer mandates yet', 'Add PE funds, family offices and strategics with their sector, geography and size appetite.',
         '<button class="btn btn-primary btn-sm" data-action="open-add-buyer">Add buyer</button>') + '</div>') +
@@ -1182,6 +1657,7 @@ function buyerCard(b) {
   return '<div class="card buyer-card ' + (isActive ? '' : 'inactive') + '">' +
     '<div class="buyer-head"><div><div class="buyer-name">' + esc(b.name) + '</div>' +
     '<div class="flex mt-sm flex-wrap"><span class="' + (BUYER_TYPE_PILL[b.buyer_type] || 'pill') + '">' + esc(BUYER_TYPES[b.buyer_type] || b.buyer_type || 'Buyer') + '</span>' +
+    (b.mgx_id ? '<span class="pill pill-outline" title="' + attr((b.source === 'mgx' ? 'Live from MGX' : 'MGX sample data') + (b.synced_at ? ', synced ' + fmtDate(b.synced_at) : '')) + '">MGX ' + esc(b.mgx_id) + '</span>' : '') +
     (toList(b.deal_types).length ? '<span class="small muted">' + esc(toList(b.deal_types).join(' · ')) + '</span>' : '') + '</div></div>' +
     '<span class="geo" title="' + attr(toList(b.geographies).map(countryName).join(', ')) + '">' + toList(b.geographies).map(flag).join('') + '</span></div>' +
     '<div>' + chips(b.sectors, 'chip-grey') + '</div>' +
@@ -1189,8 +1665,11 @@ function buyerCard(b) {
     '<div class="kv-item"><div class="kv-key">Revenue</div><div class="kv-val">' + fmtMoney(b.revenue_min_eur) + ' – ' + fmtMoney(b.revenue_max_eur) + '</div></div>' +
     '<div class="kv-item"><div class="kv-key">EBITDA</div><div class="kv-val">' + fmtMoney(b.ebitda_min_eur) + ' – ' + fmtMoney(b.ebitda_max_eur) + '</div></div></div>' +
     (b.thesis ? '<div class="buyer-thesis">' + esc(b.thesis) + '</div>' : '') +
+    (toList(b.contacts).length ? '<div class="small muted">Contact: ' + esc(b.contacts[0].name) + ', ' + esc(b.contacts[0].role) + ' · ' + esc(b.contacts[0].email) + (b.contacts[0].mock ? ' <span class="pill pill-outline">mock</span>' : '') + '</div>' : '') +
+    buyerOppsHtml(b) + buyerMessagesHtml(b) +
     '<div class="buyer-foot"><label class="switch"><input type="checkbox" data-change="buyer-active" data-id="' + attr(b.id) + '" ' + (isActive ? 'checked' : '') + '><span class="track"></span>' + (isActive ? 'Active' : 'Inactive') + '</label>' +
-    '<div class="flex"><button class="btn btn-ghost btn-xs" data-action="open-edit-buyer" data-id="' + attr(b.id) + '">Edit</button>' +
+    '<div class="flex"><button class="btn btn-secondary btn-xs" data-action="pair" data-buyer="' + attr(b.id) + '" title="Pair with the best-fitting seller and see why">⚡ Pair</button>' +
+    '<button class="btn btn-ghost btn-xs" data-action="open-edit-buyer" data-id="' + attr(b.id) + '">Edit</button>' +
     '<button class="btn btn-danger btn-xs" data-action="delete-buyer" data-id="' + attr(b.id) + '">Delete</button></div></div>' +
     '</div>';
 }
@@ -1227,11 +1706,122 @@ function buyerFromForm(fd) {
   return body;
 }
 
+/* ================= BUY-SIDE MANDATES ================= */
+const BS_STEPS = [['Read thesis', 'criteria & NACE codes'], ['Scan registers', 'FI PRH · NO Brønnøysund'], ['Owner ages', 'roles register'], ['Score targets', 'against the thesis']];
+const THESIS_EXAMPLE = 'We back founder-owned industrial and industrial-service companies in the Nordics with €5–30M revenue, EBITDA margins above 10% and a recurring service or spare-parts book. We prefer situations where the owner is approaching succession and stays for a two to three year handover. Majority or significant minority, add-ons welcome.';
+function bsState() { if (!state.buyside) state.buyside = { list: [], current: null, running: false, step: 0, timer: null }; return state.buyside; }
+async function renderBuyside(id) {
+  const bs = bsState();
+  main.innerHTML = pageSkeleton();
+  try {
+    bs.list = await api('/api/buyside/mandates');
+    if (id) bs.current = await api('/api/buyside/mandates/' + encodeURIComponent(id));
+    else if (bs.current) bs.current = await api('/api/buyside/mandates/' + encodeURIComponent(bs.current.id)).catch(function () { return null; });
+  } catch (e) { main.innerHTML = errorState(e); return; }
+  if (state.view !== 'buyside') return;
+  drawBuyside();
+}
+function bsStepperHtml(step) {
+  return '<div class="stepper">' + BS_STEPS.map(function (s, i) {
+    const cls = i < step ? 'done' : i === step ? 'active' : '';
+    return '<div class="step ' + cls + '"><div class="step-icon">' + (i < step ? '✓' : i === step ? '<span class="spinner dark"></span>' : (i + 1)) + '</div><div><div class="step-title">' + esc(s[0]) + '</div><div class="step-sub">' + esc(s[1]) + '</div></div></div>';
+  }).join('') + '</div>';
+}
+function drawBuyside() {
+  const bs = bsState();
+  const m = bs.current;
+  const formCard = '<div class="card"><div class="card-head"><div class="card-title">New buy-side mandate</div><span class="small muted">thesis in, targets and pitch out</span></div>' +
+    '<div class="card-body"><form data-form="buyside-new">' +
+    field('Paste the buyer’s investment thesis', '<textarea name="thesis_text" rows="6" style="min-height:130px" placeholder="' + attr(THESIS_EXAMPLE) + '"></textarea>', 'Or leave empty to use the example thesis.') +
+    '<div class="form-grid">' +
+    field('Buyer name (optional)', '<input type="text" name="buyer_name" placeholder="Nordic industrial buyout fund">') +
+    field('Buyer type', selectHtml('buyer_type', Object.keys(BUYER_TYPES).map(function (k) { return [k, BUYER_TYPES[k]]; }), 'PE')) +
+    '</div>' +
+    '<div class="field"><label>Registers to scan</label><div class="checks">' +
+    '<label><input type="checkbox" name="countries" value="FI" checked>🇫🇮 Finland (PRH)</label>' +
+    '<label><input type="checkbox" name="countries" value="NO" checked>🇳🇴 Norway (Brønnøysund + owner ages)</label>' +
+    '</div><div class="small muted">Sweden and DACH have no free register API: targets there come from prospect-database imports.</div></div>' +
+    '<div class="form-actions"><button type="submit" class="btn btn-primary" ' + (bs.running ? 'disabled' : '') + '>' + (bs.running ? '<span class="spinner"></span>Working…' : '⚡ Find and score targets') + '</button></div>' +
+    (bs.running ? bsStepperHtml(bs.step) : '') +
+    '</form></div></div>';
+  const listCard = '<div class="card"><div class="card-head"><div class="card-title">Mandates</div><span class="small muted">' + plural(bs.list.length, 'mandate') + '</span></div>' +
+    '<div class="card-body">' + (bs.list.length ? '<div class="mini-list">' + bs.list.map(function (x) {
+      const st = x.stats || {};
+      return '<div class="mini-item"><div><a class="t" href="#/buyside/' + attr(x.id) + '">' + esc((x.criteria && x.criteria.buyer_name) || 'Mandate') + '</a> <span class="' + (BUYER_TYPE_PILL[x.criteria && x.criteria.buyer_type] || 'pill') + '">' + esc(BUYER_TYPES[x.criteria && x.criteria.buyer_type] || '') + '</span>' +
+        '<div class="s">' + (x.target_count || 0) + ' targets · ' + (st.scored_70 || 0) + ' score 70+ · ' + (st.in_conversation || 0) + ' owners in conversation · <span class="pill">' + esc(x.status) + '</span></div></div>' +
+        '<a class="btn btn-ghost btn-xs" href="#/buyside/' + attr(x.id) + '">Open →</a></div>';
+    }).join('') + '</div>' : '<div class="muted small">No mandates yet. Paste a thesis on the left.</div>') + '</div></div>';
+  main.innerHTML =
+    topbar('Buy-side mandates', crumb([{ label: 'Mergero', href: '#/dashboard' }, { label: 'Buy-side' }]), '<span class="small muted">thesis → off-market targets → scored list → pitch that wins the mandate</span>') +
+    '<div class="content">' + (m ? bsDetailHtml(m) : '') + '<div class="grid-2">' + formCard + listCard + '</div></div>';
+}
+function bsDetailHtml(m) {
+  const c = m.criteria || {};
+  const st = m.stats || {};
+  const buyer = (state.buyers || []).find(function (b) { return b.id === m.buyer_id; });
+  const pitchMsg = buyer && (buyer.messages || []).find(function (x) { return x.id === m.buyer_message_id; });
+  const targets = (m.targets || []).slice(0, 40);
+  const critHtml = '<div class="card"><div class="card-head"><div class="card-title">' + esc(c.buyer_name || 'Mandate') + ' <span class="' + (BUYER_TYPE_PILL[c.buyer_type] || 'pill') + '">' + esc(BUYER_TYPES[c.buyer_type] || '') + '</span></div>' +
+    '<div class="flex" style="gap:6px"><button class="btn btn-danger btn-xs" data-action="bs-delete" data-id="' + attr(m.id) + '">Delete</button></div></div>' +
+    '<div class="card-body"><p style="margin-top:0">' + esc(c.thesis_summary || '') + '</p>' +
+    '<div class="grid-2"><div>' + '<div class="section-title">Criteria</div>' + chips(c.sectors, 'chip-grey') +
+    '<div class="small mt-sm">NACE: ' + esc((c.industry_codes || []).map(function (x) { return x.code + ' ' + x.label; }).join(' · ')) + '</div>' +
+    '<div class="small">Geography: ' + esc((c.geographies || []).join(', ')) + ' · Revenue ' + fmtMoney(c.revenue_min_eur) + ' – ' + fmtMoney(c.revenue_max_eur) + ' · Staff ' + (c.employees_min != null ? c.employees_min : '?') + '–' + (c.employees_max != null ? c.employees_max : '?') + '</div>' +
+    '<div class="small">Deal types: ' + esc((c.deal_types || []).join(', ')) + ' · Owner situation: ' + esc(c.owner_situation || '') + '</div></div>' +
+    '<div><div class="section-title">Scan</div><div class="buyer-range" style="grid-template-columns:repeat(4,1fr)">' +
+    '<div class="kv-item"><div class="kv-key">Targets</div><div class="kv-val">' + (st.targets || 0) + '</div></div>' +
+    '<div class="kv-item"><div class="kv-key">Score 70+</div><div class="kv-val">' + (st.scored_70 || 0) + '</div></div>' +
+    '<div class="kv-item"><div class="kv-key">In conversation</div><div class="kv-val">' + (st.in_conversation || 0) + '</div></div>' +
+    '<div class="kv-item"><div class="kv-key">Owner age known</div><div class="kv-val">' + (st.with_owner_age || 0) + '</div></div></div>' +
+    '<div class="small muted mt-sm">' + esc((st.log || []).map(function (l) { return l.error ? l.country + ' NACE ' + l.code + ': ' + l.error : l.country + ' NACE ' + l.code + ': ' + fmtNum(l.total || 0) + ' in register, ' + l.taken + ' taken'; }).join(' · ')) + '</div></div></div>' +
+    '</div></div>';
+  const rows = targets.map(function (t) {
+    const fit = Math.max(0, Math.min(100, Number(t.fit) || 0));
+    return '<tr><td><strong>' + esc(t.name) + '</strong><div class="small muted">' + esc(t.industry || '') + (t.industry_code ? ' · ' + esc(t.industry_code) : '') + '</div></td>' +
+      '<td>' + flag(t.country) + ' ' + esc(t.city || '') + '</td><td class="right">' + (t.employees != null ? t.employees : '—') + '</td><td class="right">' + (t.founded || '—') + '</td>' +
+      '<td>' + (t.owner_age ? esc(t.owner_name || 'Owner') + ', ' + t.owner_age + ' <span class="pill pill-outline">register</span>' : (t.owner_signal ? esc(t.owner_signal) : '<span class="muted">—</span>')) + '</td>' +
+      '<td><div class="fit"><div class="fit-num">' + fit + '%</div><div class="bar"><div class="bar-fill ' + (fit >= 75 ? 'green' : fit >= 50 ? '' : 'amber') + '" style="width:' + fit + '%"></div></div></div><div class="small muted">' + esc(t.reason || '') + '</div></td>' +
+      '<td>' + (t.in_pipeline ? '<a href="#/company/' + attr(t.company_id) + '"><span class="' + (STAGE_PILL[t.stage] || 'pill') + '">' + esc(stageLabel(t.stage)) + '</span></a>' : '<span class="muted small">not yet</span>') + '</td></tr>';
+  }).join('');
+  const targetsHtml = '<div class="card mt"><div class="card-head"><div class="card-title">Off-market targets · ' + (m.targets || []).length + '</div>' +
+    '<div class="flex" style="gap:6px"><button class="btn btn-secondary btn-sm" data-action="bs-import" data-id="' + attr(m.id) + '" data-top="10">＋ Add top 10 to pipeline</button>' +
+    '<button class="btn btn-primary btn-sm" data-action="bs-pitch" data-id="' + attr(m.id) + '">' + (m.pitch ? '↻ Redraft pitch' : '✍ Draft the pitch') + '</button></div></div>' +
+    (targets.length ? '<div class="table-wrap"><table class="table compact"><thead><tr><th>Company</th><th>Where</th><th class="right">Staff</th><th class="right">Founded</th><th>Owner</th><th>Fit against thesis</th><th>Pipeline</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+      : '<div class="card-body muted small">No targets found in the scanned registers for these codes. Widen the thesis or add countries.</div>') + '</div>';
+  let pitchHtml = '';
+  if (m.pitch) {
+    const p = m.pitch, o = p.one_pager || {};
+    const status = pitchMsg ? pitchMsg.status : 'draft';
+    const demo = state.settings && state.settings.demo_email;
+    pitchHtml = '<div class="card mt"><div class="card-head"><div class="card-title">Pitch · ' + esc(p.subject) + '</div><div class="flex" style="gap:6px;align-items:center">' +
+      (pitchMsg ? '<span class="' + (STATUS_PILL[status] || 'pill') + '">' + esc(status) + '</span>' : '') +
+      '<button class="btn btn-ghost btn-xs" data-action="copy-text" data-text="' + attr('Subject: ' + p.subject + '\n\n' + p.email_body) + '">⧉ Copy email</button>' +
+      (pitchMsg && status !== 'sent' ? '<button class="btn btn-primary btn-sm" data-action="bs-send" data-id="' + attr(m.id) + '" data-msg="' + attr(pitchMsg.id) + '">✉ ' + (demo ? 'Send to my inbox (demo)' : 'Approve & send') + '</button>' : '') +
+      (pitchMsg && status === 'sent' ? '<span class="small muted">sent ' + fmtDate(pitchMsg.sent_at) + (pitchMsg.delivery === 'email' ? ' by email' : '') + '</span>' : '') +
+      '</div></div>' +
+      '<div class="card-body"><div class="grid-2">' +
+      '<div><div class="section-title">Email to ' + esc(pitchMsg ? pitchMsg.to_name + ' <' + pitchMsg.to + '>' : 'the buyer') + '</div><div class="msg-body" style="white-space:pre-wrap">' + esc(p.email_body) + '</div></div>' +
+      '<div><div class="section-title">One-pager</div><div class="strong">' + esc(o.headline || '') + '</div>' +
+      '<div class="small mt-sm"><strong>Market scan.</strong> ' + esc(o.market_scan || '') + '</div>' +
+      '<div class="small mt-sm"><strong>How we found them.</strong> ' + esc(o.how_we_found_them || '') + '</div>' +
+      '<div class="small mt-sm"><strong>Highlights.</strong>' + listOrDash(o.highlights) + '</div>' +
+      '<div class="small mt-sm"><strong>Already in conversation.</strong> ' + esc(o.already_in_conversation || '') + '</div>' +
+      '<div class="small mt-sm"><strong>Proposed mandate.</strong> ' + esc(o.proposed_mandate || '') + '</div>' +
+      '<div class="small mt-sm"><strong>Next step.</strong> ' + esc(o.next_step || '') + '</div></div>' +
+      '</div></div></div>';
+  }
+  return critHtml + targetsHtml + pitchHtml + '<div class="mb"></div>';
+}
+function bsStartStepper() { const bs = bsState(); bs.running = true; bs.step = 0; clearInterval(bs.timer); bs.timer = setInterval(function () { if (bs.step < BS_STEPS.length - 1) { bs.step++; if (state.view === 'buyside') drawBuyside(); } }, 9000); }
+function bsStopStepper() { const bs = bsState(); bs.running = false; clearInterval(bs.timer); bs.timer = null; }
+
 /* ================= SETTINGS ================= */
 async function renderSettings() {
   main.innerHTML = pageSkeleton();
-  try { state.settings = await api('/api/settings'); updateBanner(); }
-  catch (e) { main.innerHTML = errorState(e); return; }
+  try {
+    const res = await Promise.all([api('/api/settings'), api('/api/mail/status').catch(function () { return null; })]);
+    state.settings = res[0]; state.mailStatus = res[1]; updateBanner();
+  } catch (e) { main.innerHTML = errorState(e); return; }
   if (state.view !== 'settings') return;
   drawSettings();
 }
@@ -1240,6 +1830,8 @@ function drawSettings() {
   const s = state.settings || {};
   const sender = s.sender || {};
   const fa = s.funnel_assumptions || {};
+  const mailS = s.mail || {};
+  const webhookUrl = (state.mailStatus && state.mailStatus.webhook_url) || (location.origin + '/api/mail/inbound/resend');
   main.innerHTML =
     topbar('Settings', crumb([{ label: 'Mergero', href: '#/dashboard' }, { label: 'Settings' }]), '<span class="small muted">AI configuration · sender identity · style · funnel</span>') +
     '<div class="content">' +
@@ -1261,13 +1853,33 @@ function drawSettings() {
     field('Phone', '<input type="text" name="sender_phone" value="' + attr(sender.phone) + '">') +
     '<div class="full">' + field('Email', '<input type="email" name="sender_email" value="' + attr(sender.email) + '">') + '</div>' +
     '</div></div></div>' +
+    advisorsCardHtml(s.advisors || []) +
+    '<div class="card"><div class="card-head"><div class="card-title">Email delivery (Resend)</div>' +
+    (mailS.configured ? '<span class="pill pill-green">On · ' + esc(mailS.api_key_masked || '') + '</span>' : '<span class="pill">Off · Send opens your mail client</span>') + '</div>' +
+    '<div class="card-body">' +
+    '<p class="small muted" style="margin-top:0">With Resend configured, <strong>Send</strong> delivers the email itself, approved follow-ups go out on their day, and owner replies come back into the Inbox already triaged. Without it, Send opens your mail client and replies are pasted by hand.</p>' +
+    field('Resend API key', '<input type="password" name="mail_api_key" autocomplete="off" placeholder="' + (mailS.api_key_set ? 'Leave blank to keep the current key' : 're_…') + '">') +
+    field('From', '<input type="text" name="mail_from" value="' + attr(mailS.from || '') + '" placeholder="Timo Tontti <timo@mail.mergero.com>">', 'A sender on a domain verified in Resend (or onboarding@resend.dev for tests).') +
+    field('Demo mode: send everything to', '<input type="email" name="demo_email" value="' + attr(s.demo_email || '') + '" placeholder="you@example.com">',
+      (s.demo_email ? '⚠ Demo mode is ON: every real email (owner sequences, follow-ups, buyer notes, pitches) is redirected to this address with the intended recipient in the subject. One email per action, never bulk.' : 'Leave empty to send to real recipients. Set it for demos so nothing reaches owners or buyers.')) +
+    field('Inbound domain', '<input type="text" name="mail_inbound_domain" value="' + attr(mailS.inbound_domain || '') + '" placeholder="inbound.mergero.com">',
+      'Replies go to owners+<prospect id>@this domain and route themselves to the prospect. Enable receiving for the domain in Resend.') +
+    field('Webhook signing secret', '<input type="password" name="mail_webhook_secret" autocomplete="off" placeholder="' + (mailS.webhook_secret_set ? 'Leave blank to keep the current secret' : 'whsec_…') + '">',
+      'Resend → Webhooks → add ' + webhookUrl + ' with the events email.received, email.delivered, email.bounced and email.complained, then paste its signing secret here.') +
+    '</div></div>' +
     '<div class="card"><div class="card-head"><div class="card-title">Funnel assumptions</div><span class="small muted">used for projected mandates</span></div><div class="card-body"><div class="form-grid-3">' +
-    field('Contact → reply', '<input type="number" step="0.01" min="0" max="1" name="contact_to_reply" value="' + attr(fa.contact_to_reply != null ? fa.contact_to_reply : '') + '">', 'e.g. 0.18') +
+    field('Contact → reply', '<input type="number" step="0.01" min="0" max="1" name="contact_to_reply" value="' + attr(fa.contact_to_reply != null ? fa.contact_to_reply : '') + '">', 'Mergero benchmark: 0.45–0.50') +
     field('Reply → meeting', '<input type="number" step="0.01" min="0" max="1" name="reply_to_meeting" value="' + attr(fa.reply_to_meeting != null ? fa.reply_to_meeting : '') + '">', 'e.g. 0.45') +
     field('Meeting → mandate', '<input type="number" step="0.01" min="0" max="1" name="meeting_to_mandate" value="' + attr(fa.meeting_to_mandate != null ? fa.meeting_to_mandate : '') + '">', 'e.g. 0.30') +
     '</div></div></div>' +
     '</div>' +
     '<div>' +
+    '<div class="card"><div class="card-head"><div class="card-title">Your voice</div><span class="small muted">the strongest anti-AI signal</span></div><div class="card-body">' +
+    field('Paste two or three emails you actually wrote to owners', '<textarea name="voice_samples" rows="7" style="min-height:150px" placeholder="Paste real past emails (greeting, rhythm, sign-off). The writer and the humanizer imitate this voice without copying sentences.">' + esc(s.voice_samples || '') + '</textarea>',
+      'Kept server-side. Owners’ names in the samples are fine; they are never reused.') +
+    field('Human-language gate (0 = strict, 100 = off)', '<input type="number" min="0" max="100" step="1" name="lint_threshold" value="' + attr(s.lint_threshold != null ? s.lint_threshold : 35) + '">',
+      'Drafts scoring above this cannot be sent without an explicit override. Hard stops (placeholders, quoted financials, reused wording, AI mentions) always block.') +
+    '</div></div>' +
     '<div class="card"><div class="card-head"><div class="card-title">Writing style rules</div></div><div class="card-body">' +
     field('Rules the outreach agent must follow', '<textarea name="style_rules" rows="7" style="min-height:150px">' + esc(s.style_rules || '') + '</textarea>') +
     '</div></div>' +
@@ -1276,6 +1888,13 @@ function drawSettings() {
     '</div></div>' +
     '<div class="card"><div class="card-body"><div class="form-actions" style="justify-content:space-between;margin:0">' +
     '<span class="small muted" id="settings-status"></span><button type="submit" class="btn btn-primary">Save settings</button></div></div></div>' +
+    '<div class="card"><div class="card-head"><div class="card-title">Integrations</div><span class="small muted">scraper · matcher · mailer</span></div><div class="card-body">' +
+    '<div class="small muted">External components plug in through JSON endpoints (see <code>docs/integration.md</code>): scraper output → <code>/api/integrations/profiles</code>, matcher output → <code>/api/integrations/matches</code>, approved emails for a mailer ← <code>/api/integrations/outbox</code>, replies → <code>/api/integrations/inbound</code>. Demo the merge with mock payloads:</div>' +
+    '<div class="flex mt flex-wrap" style="gap:8px">' +
+    '<button type="button" class="btn btn-secondary btn-sm" data-action="mock-profiles">Import mock scraper profiles</button>' +
+    '<button type="button" class="btn btn-secondary btn-sm" data-action="mock-matches">Import mock matcher results</button>' +
+    '<button type="button" class="btn btn-ghost btn-sm" data-action="open-outbox">Open approved outbox (JSON) ↗</button>' +
+    '</div></div></div>' +
     '<div class="card danger-zone"><div class="card-head"><div class="card-title">Demo data</div></div><div class="card-body flex space-between">' +
     '<div class="small muted">Reload the seed prospects, buyers and settings. All enrichment, drafts and conversations are discarded.</div>' +
     '<button type="button" class="btn btn-danger" data-action="reset-demo">Reset demo data</button></div></div>' +
@@ -1283,6 +1902,21 @@ function drawSettings() {
     '</div>';
 }
 
+function advisorsCardHtml(list) {
+  const rows = list.concat([{ id: '', name: '', title: '', email: '', phone: '', markets: [], daily_cap: 75 }]);
+  return '<div class="card"><div class="card-head"><div class="card-title">Advisors</div><span class="small muted">who sends first touches, and how many per day</span></div><div class="card-body">' +
+    '<p class="small muted" style="margin-top:0">Each prospect is owned by the advisor whose markets include its country (the first advisor takes the rest). Outreach is written and signed by that advisor and sent under their name. The daily cap protects deliverability (Mergero: 50–100 per sender); over it, emails wait for the next morning. Clear a name to remove an advisor; fill the last row to add one.</p>' +
+    rows.map(function (a) {
+      return '<div class="form-grid-3 mb" style="align-items:end">' +
+        '<input type="hidden" name="adv_id" value="' + attr(a.id) + '"><input type="hidden" name="adv_phone" value="' + attr(a.phone || '') + '">' +
+        field('Name', '<input type="text" name="adv_name" value="' + attr(a.name) + '" placeholder="' + (a.id ? '' : 'Add an advisor') + '">') +
+        field('Title', '<input type="text" name="adv_title" value="' + attr(a.title || '') + '">') +
+        field('Email', '<input type="email" name="adv_email" value="' + attr(a.email || '') + '">') +
+        field('Markets', '<input type="text" name="adv_markets" value="' + attr((a.markets || []).join(', ')) + '" placeholder="FI, SE">') +
+        field('Emails per day', '<input type="number" min="1" max="200" step="1" name="adv_cap" value="' + attr(a.daily_cap || 75) + '">') +
+        '<div></div></div>';
+    }).join('') + '</div></div>';
+}
 function settingsFromForm(fd) {
   const body = {
     model: fd.get('model').trim(),
@@ -1299,7 +1933,23 @@ function settingsFromForm(fd) {
   const key = String(fd.get('api_key') || '').trim();
   if (key) body.api_key = key;
   body.workspace_id = String(fd.get('workspace_id') || '').trim();
+  body.voice_samples = String(fd.get('voice_samples') || '');
+  body.lint_threshold = num(fd.get('lint_threshold'));
+  if (body.lint_threshold == null) delete body.lint_threshold;
+  body.mail = { from: String(fd.get('mail_from') || '').trim(), inbound_domain: String(fd.get('mail_inbound_domain') || '').trim() };
+  body.demo_email = String(fd.get('demo_email') || '').trim();
+  const mailKey = String(fd.get('mail_api_key') || '').trim();
+  if (mailKey) body.mail.resend_api_key = mailKey;
+  const secret = String(fd.get('mail_webhook_secret') || '').trim();
+  if (secret) body.mail.webhook_secret = secret;
   Object.keys(body.funnel_assumptions).forEach(function (k) { if (body.funnel_assumptions[k] == null) delete body.funnel_assumptions[k]; });
+  const ids = fd.getAll('adv_id');
+  if (ids.length) {
+    const g = function (k, i) { return String(fd.getAll(k)[i] || '').trim(); };
+    body.advisors = ids.map(function (id, i) {
+      return { id: id || undefined, name: g('adv_name', i), title: g('adv_title', i), email: g('adv_email', i), phone: g('adv_phone', i), markets: g('adv_markets', i), daily_cap: num(g('adv_cap', i)) };
+    }).filter(function (a) { return a.name; });
+  }
   return body;
 }
 
@@ -1313,7 +1963,7 @@ async function companyAction(name, fn, successMsg) {
     if (result && result.id) setCompany(result);
     if (successMsg) toast(typeof successMsg === 'function' ? successMsg(result) : successMsg);
   } catch (e) { toast(e.message, 'error'); }
-  finally { delete state.running[name]; drawCompany(); }
+  finally { delete state.running[name]; drawCompany(); if (state.view === 'inbox') refreshInbox(); }
 }
 
 function replaceMessage(msg) {
@@ -1334,7 +1984,7 @@ async function messageAction(id, name, fn, successMsg) {
     if (successMsg) toast(successMsg);
     return res;
   } catch (e) { toast(e.message, 'error'); }
-  finally { delete state.msgBusy[id]; drawCompany(); }
+  finally { delete state.msgBusy[id]; drawCompany(); if (state.view === 'inbox') refreshInbox(); }
 }
 
 function findMessage(id) {
@@ -1355,6 +2005,10 @@ async function copyText(text) {
 }
 
 const COMPANY_ACTIONS = {
+  people: function (c) {
+    return companyAction('people', function () { return api('/api/companies/' + encodeURIComponent(c.id) + '/people', 'POST'); },
+      function (r) { const lead = (r && r.people || []).find(function (p) { return p.role_code === 'DAGL'; }) || (r && r.people || [])[0]; return lead ? 'Register: ' + lead.name + ', ' + lead.role + (lead.age ? ', age ' + lead.age : '') : 'No people found in the register'; });
+  },
   run: function (c) {
     startRunStepper();
     return companyAction('run', async function () {
@@ -1420,6 +2074,29 @@ const ACTIONS = {
   'tab': function (el) { state.tab = el.dataset.tab; drawCompany(); },
   'open-company': function (el) { location.hash = '#/company/' + el.dataset.id; },
   'run-pipeline': function (el) { runPipeline(el); },
+  'queue-first-touches': async function (el) {
+    el.disabled = true;
+    try {
+      const r = await api('/api/outreach/queue', 'POST', {});
+      if (!r.queued) toast('No approved first-touch email to queue. Approve step 1 on a few prospects first.');
+      else toast('Queued ' + plural(r.queued, 'first touch', 'first touches') + ': ' + r.advisors.map(function (a) {
+        return a.advisor + ' ' + a.queued + ' over ' + plural(a.days, 'working day') + ' (cap ' + a.daily_cap + '/day), from ' + fmtDate(a.first_at);
+      }).join(' · '), 'success', 8000);
+    } catch (e) { toast(e.message, 'error'); }
+    route();
+  },
+  'mgx-sync': async function (el) {
+    el.disabled = true;
+    const label = el.innerHTML;
+    el.innerHTML = '<span class="spinner"></span>Syncing…';
+    try {
+      const r = await api('/api/mgx/sync', 'POST', {});
+      toast('MGX ' + (r.source === 'mgx' ? 'API' : 'sample') + ': ' + plural(r.mandates, 'mandate') + ' · ' + r.added + ' new · ' + r.updated + ' updated' + (r.deactivated ? ' · ' + r.deactivated + ' closed' : ''), 'success', 6000);
+      state.buyers = await api('/api/buyers');
+    } catch (e) { toast(e.message, 'error'); }
+    el.disabled = false; el.innerHTML = label;
+    if (state.view === 'buyers') drawBuyers();
+  },
   'run-watch': function (el) { runWatch(el); },
   'run-row': function (el) { runRow(el.dataset.id); },
   'open-import': function () { openImportModal(); },
@@ -1444,7 +2121,53 @@ const ACTIONS = {
   },
   'approve-message': function (el) {
     const id = el.dataset.id;
-    messageAction(id, 'approve-message', function () { return api('/api/messages/' + encodeURIComponent(id) + '/approve', 'POST'); }, 'Approved — ready to send');
+    messageAction(id, 'approve-message', async function () {
+      const m = await api('/api/messages/' + encodeURIComponent(id) + '/approve', 'POST');
+      toast(m && m.status === 'scheduled' ? 'Approved — goes out ' + fmtDate(m.send_at) : 'Approved — ready to send');
+      return m;
+    });
+  },
+  'schedule-message': function (el) {
+    const id = el.dataset.id;
+    messageAction(id, 'schedule-message', async function () {
+      const m = await api('/api/messages/' + encodeURIComponent(id) + '/approve', 'POST');
+      toast(m && m.status === 'scheduled' ? 'Scheduled for ' + fmtDate(m.send_at) : 'Kept as approved — send it by hand');
+      return m;
+    });
+  },
+  'unschedule-message': function (el) {
+    const id = el.dataset.id;
+    messageAction(id, 'unschedule-message', function () { return api('/api/messages/' + encodeURIComponent(id) + '/unschedule', 'POST'); }, 'Taken off the clock — stays approved');
+  },
+  'retry-triage': function (el) {
+    const cid = el.dataset.company, eid = el.dataset.entry;
+    companyAction('reply', function () { return api('/api/companies/' + encodeURIComponent(cid) + '/replies/' + encodeURIComponent(eid) + '/triage', 'POST'); }, 'Reply triaged');
+  },
+  'inbox-filter': function (el) { state.inboxFilter = el.dataset.filter; drawInbox(); },
+  'inbox-refresh': function () { refreshInbox(); },
+  'inbox-disqualify': async function (el) {
+    if (!confirm('Disqualify this prospect? Scheduled follow-ups are cancelled.')) return;
+    try {
+      const c = await api('/api/companies/' + encodeURIComponent(el.dataset.id) + '/stage', 'POST', { stage: 'disqualified' });
+      setCompany(c); toast('Disqualified'); await refreshInbox();
+    } catch (e) { toast(e.message, 'error'); }
+  },
+  'assign-unmatched': async function (el) {
+    const id = el.dataset.id;
+    const sel = document.querySelector('select[data-unmatched="' + id + '"]');
+    const companyId = sel && sel.value;
+    if (!companyId) { toast('Pick a prospect first', 'error'); return; }
+    await withBusy(el, 'Triaging…', async function () {
+      const c = await api('/api/mail/unmatched/' + encodeURIComponent(id) + '/assign', 'POST', { company_id: companyId });
+      toast('Assigned to ' + c.name + ' and triaged');
+      setCompany(c);
+      location.hash = '#/inbox/' + c.id;
+      await refreshInbox();
+    });
+  },
+  'discard-unmatched': async function (el) {
+    try { await api('/api/mail/unmatched/' + encodeURIComponent(el.dataset.id), 'DELETE'); toast('Discarded'); await refreshInbox(); }
+    catch (e) { toast(e.message, 'error'); }
   },
   'reject-message': function (el) {
     const id = el.dataset.id;
@@ -1465,8 +2188,12 @@ const ACTIONS = {
         const fresh = await api('/api/companies/' + encodeURIComponent(c.id));
         setCompany(fresh);
       }
+      const scheduled = ((state.company && state.company.messages) || []).filter(function (m) { return m.status === 'scheduled'; }).length;
+      if (res && res.deferred) { toast(res.note, 'info', 6000); return null; }
+      toast(res && res.delivered ? 'Sent by email' + (scheduled ? ' — ' + plural(scheduled, 'follow-up') + ' on the clock' : '')
+        : res && res.mailto ? 'Opened in your mail client — logged as sent' : 'Marked as sent — logged in the conversation');
       return null;
-    }, 'Marked as sent — logged in the conversation');
+    });
   },
   'copy-message': function (el) {
     const m = findMessage(el.dataset.id);
@@ -1503,6 +2230,108 @@ const ACTIONS = {
       drawBuyers();
     });
   },
+  /* ---- buy-side notes ---- */
+  'draft-buyer-note': async function (el) {
+    const buyerId = el.dataset.buyer, companyId = el.dataset.company;
+    await withBusy(el, 'Drafting…', async function () {
+      const r = await api('/api/buyers/' + encodeURIComponent(buyerId) + '/notes', 'POST', { company_id: companyId });
+      const i = (state.buyers || []).findIndex(function (b) { return b.id === buyerId; });
+      if (i >= 0) state.buyers[i] = r.buyer;
+      toast('Anonymised buyer note drafted — review it on the Buyers page');
+      state.suggest = await api('/api/suggestions').catch(function () { return state.suggest; });
+      if (state.view === 'buyers') drawBuyers(); else if (state.view === 'dashboard') drawDashboard(); else location.hash = '#/buyers';
+    });
+  },
+  /* ---- one-click pairing ---- */
+  'pair': async function (el) {
+    const body = {};
+    if (el.dataset.company) body.company_id = el.dataset.company;
+    if (el.dataset.buyer) body.buyer_id = el.dataset.buyer;
+    await withBusy(el, 'Pairing…', async function () {
+      const p = await api('/api/pairings', 'POST', body);
+      state.pairings = [p].concat((state.pairings || []).filter(function (x) { return x.id !== p.id; }));
+      pairingModal(p);
+      if (state.view === 'dashboard') drawDashboard();
+    });
+  },
+  'pairing-why': function (el) { const p = (state.pairings || []).find(function (x) { return x.id === el.dataset.id; }); if (p) pairingModal(p); },
+  'pairing-accept': async function (el) {
+    const id = el.dataset.id;
+    await withBusy(el, 'Accepting…', async function () {
+      const r = await api('/api/pairings/' + encodeURIComponent(id) + '/accept', 'POST');
+      closeModal();
+      toast(r.buyer_message_id ? 'Pairing accepted — anonymised buyer note drafted, review it on the Buyers page' : 'Pairing accepted — open the owner conversation first; the buyer is told once the owner replies');
+      state.buyersLoaded = false; state.companies = [];
+      await refreshPairings();
+    });
+  },
+  'pairing-dismiss': async function (el) {
+    const id = el.dataset.id;
+    await api('/api/pairings/' + encodeURIComponent(id) + '/dismiss', 'POST').catch(function (e) { toast(e.message, 'error'); });
+    closeModal();
+    await refreshPairings();
+  },
+  /* ---- buy-side mandates ---- */
+  'bs-pitch': async function (el) {
+    const id = el.dataset.id;
+    await withBusy(el, 'Writing pitch…', async function () {
+      const r = await api('/api/buyside/mandates/' + encodeURIComponent(id) + '/pitch', 'POST');
+      bsState().current = r.mandate; state.buyersLoaded = false;
+      state.buyers = await api('/api/buyers').catch(function () { return state.buyers; }); state.buyersLoaded = true;
+      toast('Pitch drafted — review it, then send to your inbox');
+      drawBuyside();
+    });
+  },
+  'bs-import': async function (el) {
+    const id = el.dataset.id;
+    await withBusy(el, 'Adding…', async function () {
+      const r = await api('/api/buyside/mandates/' + encodeURIComponent(id) + '/import', 'POST', { top: Number(el.dataset.top) || 10 });
+      bsState().current = r.mandate; state.companies = [];
+      toast(plural(r.imported, 'target') + ' added to the sell-side pipeline as New');
+      drawBuyside();
+    });
+  },
+  'bs-send': async function (el) {
+    const msgId = el.dataset.msg, id = el.dataset.id;
+    await withBusy(el, 'Sending…', async function () {
+      await api('/api/buyer-messages/' + encodeURIComponent(msgId) + '/approve', 'POST').catch(function () { /* may already be approved */ });
+      const r = await api('/api/buyer-messages/' + encodeURIComponent(msgId) + '/send', 'POST');
+      if (r && r.mailto) { try { window.open(r.mailto, '_blank'); } catch (e) { /* popup blocked */ } }
+      state.buyers = await api('/api/buyers').catch(function () { return state.buyers; });
+      bsState().current = await api('/api/buyside/mandates/' + encodeURIComponent(id));
+      toast(r && r.message && r.message.delivery === 'email' ? 'Pitch sent by email' + (state.settings && state.settings.demo_email ? ' to ' + state.settings.demo_email + ' (demo mode)' : '') : 'Pitch opened in your mail client');
+      drawBuyside();
+    });
+  },
+  'bs-delete': async function (el) {
+    if (!confirm('Delete this mandate and its target list?')) return;
+    await api('/api/buyside/mandates/' + encodeURIComponent(el.dataset.id), 'DELETE');
+    bsState().current = null; location.hash = '#/buyside'; renderBuyside();
+  },
+  'lint-override': function (el) {
+    const id = el.dataset.id, on = el.dataset.value === '1';
+    if (on && !confirm('Send this draft even though the human-language check failed?')) return;
+    messageAction(id, 'lint-override', async function () { const m = await api('/api/messages/' + encodeURIComponent(id), 'PUT', { lint_override: on }); toast(on ? 'Override set — sending allowed' : 'Override removed'); return m; });
+  },
+  'buyer-msg-approve': function (el) { buyerMessageAction(el, 'approve', 'Buyer note approved'); },
+  'buyer-msg-reject': function (el) { buyerMessageAction(el, 'reject', 'Buyer note rejected'); },
+  'buyer-msg-send': function (el) { buyerMessageAction(el, 'send', 'Buyer note sent'); },
+  /* ---- integrations (mock adapters for the teammate's scraper / matcher / mailer) ---- */
+  'mock-profiles': async function (el) {
+    await withBusy(el, 'Importing…', async function () {
+      const r = await api('/api/integrations/mock/profiles', 'POST');
+      toast('Imported ' + plural((r.imported || []).length, 'scraper profile') + ' (' + (r.imported || []).reduce(function (n, x) { return n + (x.facts || 0); }, 0) + ' sourced facts)');
+      state.companies = [];
+    });
+  },
+  'mock-matches': async function (el) {
+    await withBusy(el, 'Importing…', async function () {
+      const r = await api('/api/integrations/mock/matches', 'POST');
+      toast('Matcher results applied to ' + plural(r.companies_updated || 0, 'company', 'companies'));
+      state.companies = [];
+    });
+  },
+  'open-outbox': function () { window.open('/api/integrations/outbox?status=approved', '_blank'); },
   'reset-demo': async function (el) {
     if (!confirm('Reset all demo data? Enrichment, drafts and conversations will be lost.')) return;
     await withBusy(el, 'Resetting…', async function () {
@@ -1516,8 +2345,31 @@ const ACTIONS = {
   }
 };
 
+async function buyerMessageAction(el, action, okMsg) {
+  const id = el.dataset.id;
+  await withBusy(el, '…', async function () {
+    const r = await api('/api/buyer-messages/' + encodeURIComponent(id) + '/' + action, 'POST');
+    const m = r && r.message ? r.message : r;
+    (state.buyers || []).forEach(function (b) { const i = (b.messages || []).findIndex(function (x) { return x.id === id; }); if (i >= 0) b.messages[i] = m; });
+    if (r && r.mailto) window.open(r.mailto, '_blank');
+    toast(okMsg + (r && r.mailto ? ' — your mail client opened with the note' : ''));
+    if (state.view === 'buyers') drawBuyers();
+  });
+}
+
 /* ================= form submits ================= */
 const FORMS = {
+  'buyside-new': async function (form, fd, submitBtn) {
+    const bs = bsState();
+    const body = { thesis_text: String(fd.get('thesis_text') || '').trim() || THESIS_EXAMPLE, buyer_name: String(fd.get('buyer_name') || '').trim(), buyer_type: fd.get('buyer_type'), countries: fd.getAll('countries') };
+    bsStartStepper(); drawBuyside();
+    try {
+      const m = await api('/api/buyside/mandates', 'POST', body);
+      bs.current = m; bs.list = await api('/api/buyside/mandates').catch(function () { return bs.list; });
+      toast((m.stats ? m.stats.targets : 0) + ' targets found, ' + (m.stats ? m.stats.scored_70 : 0) + ' score 70+');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { bsStopStepper(); if (state.view === 'buyside') drawBuyside(); }
+  },
   'import-csv': async function (form, fd, submitBtn) {
     const csv = String(fd.get('csv') || '').trim();
     if (!csv) { toast('Paste CSV text first', 'error'); return; }
@@ -1585,8 +2437,21 @@ const FORMS = {
 
 /* ================= change handlers ================= */
 const CHANGES = {
+  'advisor': async function (el) {
+    const c = state.company;
+    if (!c) return;
+    el.disabled = true;
+    try {
+      const updated = await api('/api/companies/' + encodeURIComponent(c.id), 'PUT', { advisor_id: el.value });
+      setCompany(updated);
+      const a = advisorOf(updated);
+      toast((a ? a.name : 'The advisor') + ' now owns this prospect. Redraft the outreach to have it signed by them.');
+    } catch (e) { toast(e.message, 'error'); }
+    drawCompany();
+  },
   'filter-stage': function (el) { state.filters.stage = el.value; drawProspectRows(); },
   'filter-country': function (el) { state.filters.country = el.value; drawProspectRows(); },
+  'filter-source': function (el) { state.filters.source = el.value; drawProspectRows(); },
   'outreach-lang': function (el) { state.outreachLang = el.value; },
   'outreach-framing': function (el) { state.outreachFraming = el.value; },
   'stage': async function (el) {

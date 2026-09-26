@@ -13,6 +13,9 @@ const DEFAULT_SETTINGS = {
   api_key: process.env.ANTHROPIC_API_KEY || "",
   workspace_id: process.env.ANTHROPIC_WORKSPACE_ID || "",
   model: process.env.CLAUDE_MODEL || "claude-opus-5",
+  demo_email: process.env.DEMO_EMAIL || "",   // when set, every real email is redirected here (demo mode, never bulk)
+  voice_samples: "",      // the advisor's own past emails; the writer and humanizer imitate this voice
+  lint_threshold: 35,     // human-language score above which a draft cannot be sent without an override
   sender: {
     name: "Timo Tontti",
     title: "Managing Partner, Head of Sell-side Advisory",
@@ -30,7 +33,14 @@ const DEFAULT_SETTINGS = {
     "€500M+ of deals closed, 18 transactions in H1 2026",
     "Off-market process: no auction, no public leak, owner stays in control",
   ],
-  funnel_assumptions: { contact_to_reply: 0.18, reply_to_meeting: 0.45, meeting_to_mandate: 0.3 },
+  // Timo (2026-09-26): "1,000 outbound contacts → ~450–500 owner conversations". The later two rates are our assumptions.
+  funnel_assumptions: { contact_to_reply: 0.475, reply_to_meeting: 0.45, meeting_to_mandate: 0.3 },
+  // First touches come from the individual advisor (Timo), each capped per day for deliverability (Timo: 50–100/day).
+  // The first advisor mirrors `sender`; markets route a prospect to its advisor by country, the first advisor takes the rest.
+  advisors: [
+    { id: "adv_timo", name: "Timo Tontti", title: "Managing Partner, Head of Sell-side Advisory", email: "timo.tontti@mergero.com", phone: "+358 400 274491", markets: ["FI", "DE", "AT", "CH"], daily_cap: 75 },
+    { id: "adv_miiro", name: "Miiro Nygrén", title: "Associate Director, Nordics", email: "", phone: "", markets: ["SE", "NO", "DK", "IS"], daily_cap: 75 },
+  ],
   // Real email (server/mail.js): Resend for sending, Resend receiving for owner replies. Settings override the environment.
   mail: {
     resend_api_key: process.env.RESEND_API_KEY || "",
@@ -55,7 +65,67 @@ function normalizeState(s) {
   for (const k of Object.keys(DEFAULT_SETTINGS.mail)) if (!s.settings.mail[k] && DEFAULT_SETTINGS.mail[k]) s.settings.mail[k] = DEFAULT_SETTINGS.mail[k];
   if (!s.settings.api_key && process.env.ANTHROPIC_API_KEY) s.settings.api_key = process.env.ANTHROPIC_API_KEY;
   s.inbox_unmatched = Array.isArray(s.inbox_unmatched) ? s.inbox_unmatched : [];
+  if (s.settings.funnel_assumptions?.contact_to_reply === 0.18) s.settings.funnel_assumptions = { ...s.settings.funnel_assumptions, contact_to_reply: 0.475 };
+  if (!Array.isArray(s.settings.advisors) || !s.settings.advisors.length) {
+    s.settings.advisors = DEFAULT_SETTINGS.advisors.map((a, i) => (i === 0 ? { ...a, ...pick(s.settings.sender, ["name", "title", "email", "phone"]) } : { ...a }));
+  }
   return s;
+}
+const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o?.[k]).map((k) => [k, o[k]]));
+
+// ---- Advisors: who a prospect's outreach comes from, and how many emails each may send per day ----
+export const DAILY_CAP_RANGE = { min: 1, max: 200, default: 75 };
+export function advisors() { return load().settings.advisors || []; }
+export function advisorFor(c) {
+  const list = advisors();
+  return list.find((a) => a.id === c?.advisor_id) || list.find((a) => (a.markets || []).includes(c?.country)) || list[0] || null;
+}
+// Settings as seen by the agents for one prospect: `sender` becomes that prospect's advisor (name, title, sign-off).
+export function settingsFor(c) {
+  const s = load().settings;
+  const a = advisorFor(c);
+  return a ? { ...s, sender: { ...s.sender, ...pick(a, ["name", "title", "email", "phone"]), advisor_id: a.id } } : s;
+}
+// Emails sent today (local day) per advisor, counted from the messages themselves so restarts and imports stay consistent.
+const dayKey = (t) => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+export function sentToday(advisorId, now = Date.now()) {
+  const today = dayKey(now);
+  let n = 0;
+  for (const c of load().companies) for (const m of c.messages) {
+    if (m.channel !== "email" || !m.sent_at || dayKey(m.sent_at) !== today) continue;
+    if ((m.sent_by || advisorFor(c)?.id) === advisorId) n++;
+  }
+  // Buyer-side notes and pitches (stored on buyers) count against the same cap.
+  for (const b of load().buyers) for (const m of b.messages || []) {
+    if (m.channel !== "email" || !m.sent_at || dayKey(m.sent_at) !== today || m.delivery !== "email") continue;
+    if (m.sent_by === advisorId) n++;
+  }
+  return n;
+}
+export function capOf(a) { return Math.max(DAILY_CAP_RANGE.min, Math.min(DAILY_CAP_RANGE.max, Number(a?.daily_cap) || DAILY_CAP_RANGE.default)); }
+// Next morning 08:00 local (weekends skipped): where a capped send moves to.
+export function nextSendWindow(now = Date.now()) {
+  const d = new Date(now); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0);
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+  return d.getTime();
+}
+export function capacity(now = Date.now()) {
+  const { companies, settings } = load();
+  const f = settings.funnel_assumptions;
+  const rows = advisors().map((a) => {
+    const assigned = companies.filter((c) => advisorFor(c)?.id === a.id);
+    const queued = assigned.reduce((n, c) => n + c.messages.filter((m) => m.channel === "email" && m.step === 1 && ["approved", "scheduled"].includes(m.status)).length, 0);
+    return { id: a.id, name: a.name, title: a.title, markets: a.markets || [], daily_cap: capOf(a), sent_today: sentToday(a.id, now), prospects: assigned.length, first_touches_queued: queued };
+  });
+  const perDay = rows.reduce((n, r) => n + r.daily_cap, 0);
+  const perMonth = perDay * 21; // working days; a first touch plus two follow-ups share the cap, so new owners ≈ a third of sends
+  return {
+    advisors: rows,
+    emails_per_day: perDay,
+    new_owners_per_month: Math.round(perMonth / 3),
+    conversations_per_month: Math.round((perMonth / 3) * f.contact_to_reply),
+    benchmark: "Mergero: 1,000 outbound contacts → ~450–500 owner conversations",
+  };
 }
 
 export function load() {
@@ -230,10 +300,14 @@ export function publicSettings() {
     api_key_masked: key ? `${key.slice(0, 7)}…${key.slice(-4)}` : "",
     workspace_id: s.workspace_id || "",
     model: s.model,
+    voice_samples: s.voice_samples || "",
+    demo_email: s.demo_email || "",
+    lint_threshold: s.lint_threshold ?? 35,
     sender: s.sender,
     style_rules: s.style_rules,
     value_props: s.value_props,
     funnel_assumptions: s.funnel_assumptions,
+    advisors: s.advisors || [],
     mail: publicMail(s),
   };
 }
@@ -327,9 +401,22 @@ export function stats() {
   const f = settings.funnel_assumptions;
   const active = companies.filter((c) => !["disqualified", "mandate_signed"].includes(c.stage));
   const projected = active.reduce((acc, c) => {
-    const p = (c.score?.readiness ?? 40) / 100;
-    return acc + p * f.contact_to_reply * f.reply_to_meeting * f.meeting_to_mandate * 4; // readiness scales reply odds
+    // Readiness 50 = the benchmark reply rate; higher readiness raises the odds, capped at 95%.
+    const reply = Math.min(0.95, f.contact_to_reply * ((c.score?.readiness ?? 40) / 50));
+    return acc + reply * f.reply_to_meeting * f.meeting_to_mandate;
   }, 0) + by_stage.mandate_signed;
+  // Scale numbers from real usage: API spend and wall time per fully processed prospect.
+  const u = load().usage || { total: { usd: 0 }, by_company: {} };
+  const runs = Object.values(u.by_company || {}).filter((x) => x.runs && x.seconds);
+  const spent = Object.values(u.by_company || {}).filter((x) => x.usd > 0);
+  const avgSeconds = runs.length ? runs.reduce((a, x) => a + x.seconds / x.runs, 0) / runs.length : null;
+  const scale = {
+    api_spend_usd: Math.round((u.total?.usd || 0) * 100) / 100,
+    cost_per_prospect_usd: spent.length ? Math.round((spent.reduce((a, x) => a + x.usd, 0) / spent.length) * 100) / 100 : null,
+    minutes_per_prospect: avgSeconds ? Math.round(avgSeconds / 6) / 10 : null,
+    prospects_per_hour_at_3: avgSeconds ? Math.round((3600 / avgSeconds) * 3) : null,
+    prospects_measured: runs.length,
+  };
   return {
     by_stage,
     total: companies.length,
@@ -341,5 +428,6 @@ export function stats() {
     replies_unhandled: unhandled,
     inbox_unmatched: (load().inbox_unmatched || []).length,
     hours_saved: Math.round(minutesSaved / 6) / 10,
+    scale,
   };
 }

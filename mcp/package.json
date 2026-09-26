@@ -1,0 +1,22 @@
+{
+  "name": "mergero-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Model Context Protocol (stdio) server for the Mergero Origination Engine: prospects, registry sourcing, pipeline runs, outreach approvals, the reply inbox and buyer mandates as tools for Claude Desktop, Claude Code or any MCP client.",
+  "bin": {
+    "mergero-mcp": "index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node smoke.mjs",
+    "inspect": "npx @modelcontextprotocol/inspector node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "zod": "^3.25.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

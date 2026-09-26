@@ -67,6 +67,16 @@ export function messageIdToken(header) {
 export async function send(settings, { to, subject, text, html, reply_to, headers, tags }) {
   const c = config(settings);
   if (!c.api_key || !c.from) throw Object.assign(new Error("Email delivery is not configured: add the Resend API key and From address in Settings."), { status: 409 });
+  // Demo mode: when a demo address is set, EVERY outbound email goes there instead of the real recipient (one email per
+  // action, never bulk), with the intended recipient recorded in the subject and body. Nothing reaches owners or buyers.
+  const demo = String(settings?.demo_email || process.env.DEMO_EMAIL || "").trim();
+  const intended = Array.isArray(to) ? to.join(", ") : String(to || "");
+  if (demo) {
+    to = [demo];
+    subject = `[DEMO → ${intended}] ${subject || "(no subject)"}`;
+    text = `(Demo mode: this email would have gone to ${intended}.)\n\n${text || ""}`;
+    if (html) html = `<p style="color:#b45309;font-family:sans-serif;font-size:12px">Demo mode: this email would have gone to ${intended}.</p>` + html;
+  }
   const body = { from: c.from, to: Array.isArray(to) ? to : [to], subject: subject || "(no subject)", text: text || "" };
   if (html) body.html = html;
   if (reply_to) body.reply_to = reply_to;

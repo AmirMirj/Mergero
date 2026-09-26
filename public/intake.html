@@ -9,6 +9,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    /* Buyer-demand snapshot shown under the thank-you state once the conversation is complete */
+    .demand-snapshot { padding: 18px 20px 20px; border-top: 1px solid var(--border); background: var(--surface); }
+    .demand-snapshot .ds-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--teal-dark); font-weight: 600; margin-bottom: 10px; }
+    .demand-snapshot .ds-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .demand-snapshot .ds-n { font-size: 36px; font-weight: 700; color: var(--navy); line-height: 1; font-variant-numeric: tabular-nums; }
+    .demand-snapshot .ds-text { flex: 1 1 200px; font-weight: 600; color: var(--navy); line-height: 1.35; }
+    .demand-snapshot .ds-types { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+    .demand-snapshot .ds-soft { margin-top: 10px; padding: 10px 12px; background: var(--teal-bg); border-left: 3px solid var(--teal); border-radius: 0 8px 8px 0; font-size: 13px; color: var(--navy); line-height: 1.5; }
+    .demand-snapshot .ds-quotes { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .demand-snapshot .ds-quotes li { font-size: 12.5px; color: var(--muted); font-style: italic; padding-left: 10px; border-left: 2px solid var(--border-strong); line-height: 1.5; }
+    .demand-snapshot .ds-foot { margin-top: 10px; font-size: 11.5px; color: var(--muted-2); }
+  </style>
 </head>
 <body>
   <div class="intake-page">
@@ -25,6 +38,7 @@
       <div class="chat" id="chat" aria-live="polite"></div>
 
       <div class="complete-state hidden" id="complete-state">✓ Thank you — summary sent to your advisor</div>
+      <div class="demand-snapshot hidden" id="demand-snapshot" aria-live="polite"></div>
 
       <form class="chat-input" id="chat-form">
         <textarea id="chat-text" rows="1" placeholder="Type your answer…" autocomplete="off" required></textarea>

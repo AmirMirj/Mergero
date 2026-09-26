@@ -1,0 +1,27 @@
+[
+  {
+    "company": { "name": "Vaasa Energy Services Oy", "country": "FI", "website": "https://www.vaasaenergy-demo.fi", "registry_id": "" },
+    "summary": "Field-service company for wind and district-heating installations along the Finnish west coast. Recurring maintenance contracts with two utilities and several wind-park operators; a growing electrification business for industrial sites.",
+    "pages_read": 17,
+    "site": { "languages": ["fi", "en"], "has_careers": true },
+    "financials": { "revenue_eur": 7800000, "ebit_eur": 900000, "employees": 54, "year": 2025, "source": "PRH iXBRL (mock)" },
+    "facts": [
+      { "id": "x1", "category": "events", "claim": "Signed a five-year maintenance agreement covering 42 turbines in Ostrobothnia", "quote": "five-year service agreement for 42 turbines", "url": "https://www.vaasaenergy-demo.fi/news/2026-service-agreement", "as_of": "2026-03-11", "confidence": "high" },
+      { "id": "x2", "category": "direction", "claim": "Company states it wants to double its industrial electrification business by 2028", "quote": "our target is to double electrification revenue by 2028", "url": "https://www.vaasaenergy-demo.fi/en/strategy", "as_of": "2026-01-20", "confidence": "medium" },
+      { "id": "x3", "category": "people", "claim": "Founder Pekka Saari (58) remains CEO; no deputy CEO listed", "quote": "Pekka Saari, CEO and founder", "url": "https://www.vaasaenergy-demo.fi/en/team", "as_of": "2026-05-02", "confidence": "high" },
+      { "id": "x4", "category": "customers", "claim": "References include two regional utilities and three wind-park operators", "quote": "our customers include Vaasan Sähkö and EPV Energia", "url": "https://www.vaasaenergy-demo.fi/en/references", "as_of": null, "confidence": "medium" },
+      { "id": "x5", "category": "careers", "claim": "Six open technician positions posted in May 2026", "quote": "we are hiring six service technicians", "url": "https://www.vaasaenergy-demo.fi/careers", "as_of": "2026-05-15", "confidence": "high" }
+    ]
+  },
+  {
+    "company": { "name": "Ravensberg Fördertechnik GmbH", "country": "DE", "website": "https://www.ravensberg-foerdertechnik-demo.de" },
+    "summary": "Family-owned maker of conveyor and intralogistics systems for food and packaging plants in North Rhine-Westphalia, with an after-sales unit serving 400 installed systems.",
+    "pages_read": 22,
+    "financials": { "revenue_eur": 18500000, "ebit_eur": 1700000, "employees": 96, "year": 2024, "source": "Bundesanzeiger (mock)" },
+    "facts": [
+      { "id": "x1", "category": "events", "claim": "Opened a 2,400 m² assembly hall extension in Bielefeld in September 2025", "quote": "Erweiterung der Montagehalle um 2.400 m²", "url": "https://www.ravensberg-foerdertechnik-demo.de/aktuelles/hallenerweiterung", "as_of": "2025-09-30", "confidence": "high" },
+      { "id": "x2", "category": "ownership", "claim": "Second-generation owner Dr. Klaus Ravensberg (64) is managing director; his children are not in the business according to the imprint and team page", "quote": "Geschäftsführer: Dr. Klaus Ravensberg", "url": "https://www.ravensberg-foerdertechnik-demo.de/impressum", "as_of": "2026-02-01", "confidence": "medium" },
+      { "id": "x3", "category": "offering", "claim": "Launched a retrofit programme for older conveyor lines (energy monitoring, new drives)", "quote": "Retrofit-Programm für Bestandsanlagen", "url": "https://www.ravensberg-foerdertechnik-demo.de/produkte/retrofit", "as_of": "2026-04-08", "confidence": "high" }
+    ]
+  }
+]

@@ -4,9 +4,39 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { icpForPrompt, MESSAGING_PRINCIPLES, READINESS_SIGNALS } from "./playbook.js";
 import {
   EnrichmentSchema, ScoreSchema, MatchRerankSchema, OutreachSchema,
-  HumanizerSchema, TriageSchema, IntakeTurnSchema,
+  HumanizerSchema, TriageSchema, ReplyScoreSchema, IntakeTurnSchema,
   PageFactsSchema, WebFactsSchema, ReportFinancialsSchema, TeaserSchema,
 } from "./schemas.js";
+
+// ---------- usage & cost tracking (every Claude call in the app goes through this file or reports here) ----------
+import { AsyncLocalStorage } from "node:async_hooks";
+const als = new AsyncLocalStorage();
+// USD per million tokens (Anthropic list prices); cache writes ≈ 1.25× input, cache reads ≈ 0.1× input.
+const PRICES = { "claude-opus-5": [5, 25], "claude-opus-5-5": [4, 20], "claude-opus-4-8": [5, 25], "claude-opus-4-7": [5, 25], "claude-opus-4-6": [5, 25], "claude-sonnet-5": [2, 10], "claude-sonnet-4-6": [3, 15], "claude-haiku-4-5": [1, 5], "claude-fable-5": [10, 50], "claude-fable-5-1": [10, 50] };
+export const usage = { total: { calls: 0, input_tokens: 0, output_tokens: 0, cache_read: 0, cache_write: 0, usd: 0 }, by_company: {}, by_agent: {} };
+export function costOf(u = {}, model = "claude-opus-5") {
+  const [pin, pout] = PRICES[model] || PRICES["claude-opus-5"];
+  return ((u.input_tokens || 0) * pin + (u.output_tokens || 0) * pout + (u.cache_creation_input_tokens || 0) * pin * 1.25 + (u.cache_read_input_tokens || 0) * pin * 0.1) / 1e6;
+}
+export function track(u, model, agent = "other") {
+  if (!u) return;
+  const ctx = als.getStore() || {};
+  const usd = costOf(u, model);
+  const bump = (t) => { t.calls++; t.input_tokens += u.input_tokens || 0; t.output_tokens += u.output_tokens || 0; t.cache_read += u.cache_read_input_tokens || 0; t.cache_write += u.cache_creation_input_tokens || 0; t.usd += usd; };
+  bump(usage.total);
+  if (ctx.company_id) bump(usage.by_company[ctx.company_id] ||= { calls: 0, input_tokens: 0, output_tokens: 0, cache_read: 0, cache_write: 0, usd: 0, seconds: 0 });
+  bump(usage.by_agent[ctx.agent || agent] ||= { calls: 0, input_tokens: 0, output_tokens: 0, cache_read: 0, cache_write: 0, usd: 0 });
+  for (const fn of usageListeners) { try { fn(usage); } catch { /* listener errors never break a call */ } }
+}
+const usageListeners = [];
+export function onUsage(fn) { usageListeners.push(fn); }
+// Run fn with usage attributed to a company (and optionally an agent name); nested calls inherit the company.
+export function runTracked(company_id, fn, agent) {
+  const parent = als.getStore() || {};
+  return als.run({ company_id: company_id ?? parent.company_id, agent: agent ?? parent.agent }, fn);
+}
+export function addSeconds(company_id, seconds) { const t = usage.by_company[company_id] ||= { calls: 0, input_tokens: 0, output_tokens: 0, cache_read: 0, cache_write: 0, usd: 0, seconds: 0 }; t.seconds += seconds; t.runs = (t.runs || 0) + 1; }
+export function hydrateUsage(saved) { if (saved?.total) Object.assign(usage.total, saved.total); if (saved?.by_company) Object.assign(usage.by_company, saved.by_company); if (saved?.by_agent) Object.assign(usage.by_agent, saved.by_agent); }
 
 const clients = new Map();
 function client(settings) {
@@ -26,7 +56,7 @@ function client(settings) {
 }
 
 // One structured call. Thinking is adaptive on every current model; effort tunes depth vs. latency.
-async function parse(settings, { schema, system, user, effort = "medium", max_tokens = 16000 }) {
+export async function parse(settings, { schema, system, user, effort = "medium", max_tokens = 16000 }) {
   let res;
   try {
     res = await client(settings).messages.parse({
@@ -47,6 +77,7 @@ async function parse(settings, { schema, system, user, effort = "medium", max_to
     if (err?.name === "ZodError" || err?.issues) throw new Error("Model output did not match the expected schema; please retry.");
     throw err;
   }
+  track(res.usage, settings.model || "claude-opus-5");
   if (res.stop_reason === "refusal") throw new Error(`Model declined the request (${res.stop_details?.category || "refusal"}).`);
   if (!res.parsed_output) throw new Error("Model returned no structured output (stop_reason=" + res.stop_reason + ").");
   return res.parsed_output;
@@ -172,7 +203,7 @@ Write findings as short bullets, each with its source. Say so plainly when nothi
   };
   const call = async () => {
     for (;;) {
-      try { return await c.messages.create({ ...params, messages }); }
+      try { const r = await c.messages.create({ ...params, messages }); track(r.usage, params.model); return r; }
       catch (err) {
         // The search provider rejects some locations/domains; retry without that option rather than fail.
         const msg = err?.message || "";
@@ -333,6 +364,7 @@ async function researchWithWeb(company, facts, settings) {
   let text = "";
   for (let i = 0; i < 4; i++) {
     const res = await c.messages.create({ ...params, messages });
+    track(res.usage, params.model, "research");
     text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("\n");
     if (res.stop_reason === "pause_turn") { messages.push({ role: "assistant", content: res.content }); continue; }
     if (res.stop_reason === "refusal") throw new Error("research declined");
@@ -342,7 +374,7 @@ async function researchWithWeb(company, facts, settings) {
 }
 
 // ---------- 2. Sale-readiness scoring agent ----------
-export async function score(company, buyers, settings) {
+export async function score(company, buyers, settings, { learning } = {}) {
   const activeBuyers = buyers.filter((b) => b.active !== false);
   const buyerSummary = activeBuyers.map((b) => `- ${b.name} (${b.buyer_type}): sectors ${b.sectors.join("/")}, geo ${b.geographies.join("/")}, revenue ${eur(b.revenue_min_eur)}-${eur(b.revenue_max_eur)}, EBITDA ${eur(b.ebitda_min_eur)}-${eur(b.ebitda_max_eur)}`).join("\n");
   return {
@@ -350,7 +382,7 @@ export async function score(company, buyers, settings) {
       schema: ScoreSchema,
       effort: "medium",
       system: `${MERGERO_CONTEXT}\nYou are Mergero's origination analyst. Score prospects for sell-side outreach. Readiness = probability the owner is open to a transaction in 6-18 months (succession age 58+, long tenure, flat growth, no successor, PE consolidation in sector, recent inbound interest are positive; fresh PE ownership (holding period <3y), recent large investment, young founder in growth mode are negative). Attractiveness = fit with the buyer network below. Valuation: rule of thumb 5-8x EBITDA for profitable SMEs, 0.8-2x revenue for software; the hard minimum Mergero accepts is €3-5M valuation. Be calibrated: most prospects should land 30-70; reserve 80+ for strong, multi-signal cases.\n${icpForPrompt()}\nReadiness signals Mergero cares about — positive: ${READINESS_SIGNALS.positive.join("; ")}. Negative: ${READINESS_SIGNALS.negative.join("; ")}. Remember the owner usually has not considered selling yet: readiness measures openness to a first conversation, including growth capital or a minority stake, not a declared intent to sell.`,
-      user: `Prospect:\n${companyFacts(company)}\n\nEnrichment profile:\n${JSON.stringify(company.enrichment || {}, null, 1)}\n\n${researchBrief(company) ? `Sourced research (filed accounts beat database figures; dated events matter for timing):\n${researchBrief(company)}\n\n` : ""}Buyer network (anonymised mandates):\n${buyerSummary}\n\nScore this prospect.`,
+      user: `Prospect:\n${companyFacts(company)}\n\nEnrichment profile:\n${JSON.stringify(company.enrichment || {}, null, 1)}\n\n${researchBrief(company) ? `Sourced research (filed accounts beat database figures; dated events matter for timing):\n${researchBrief(company)}\n\n` : ""}Buyer network (anonymised mandates):\n${buyerSummary}\n\n${learning ? `What has worked so far for prospects like this (observed outcomes; weigh them, do not copy them):\n${learning}\n\n` : ""}Score this prospect.`,
     })),
     scored_at: new Date().toISOString(),
   };
@@ -429,19 +461,32 @@ export async function outreach(company, settings, { language = "en", channel, fr
   const out = await parse(settings, {
     schema: OutreachSchema,
     effort: "high",
-    system: `${MERGERO_CONTEXT}\nYou write first-contact outreach for ${s.name}, ${s.title} at ${s.firm}, to the owner of a private company. Goal of touch 1: earn a 20-minute warm-up conversation, not a mandate. Style rules (non-negotiable): ${settings.style_rules}\nProof points you may use sparingly (max one per message): ${settings.value_props.join(" | ")}.\nChannel conventions: email = 90-140 words with a plain subject line that reads like a colleague wrote it (no clickbait); linkedin = 40-80 words, no subject, first-name friendly; call_script = a 60-second opener with one question.\nSequence: step 1 day 0 opens with one specific observation about their company and one concrete statement of buyer demand; step 2 (day 5-7) adds a new angle (a comparable transaction pattern, timing, or a data point) in half the length; step 3 (day 12-16) closes the loop politely and leaves the door open. Never mention AI, never mention that this is a sequence, never use placeholders like [Name].\nSpecific observations must come from the verified research facts or the enrichment profile; prefer a recent, dated fact. Never quote the company's own financial figures (revenue, profit, margins) back to the owner.\nConversation framing for this sequence: ${FRAMING_GUIDE[framing]}\nMergero messaging principles:\n${MESSAGING_PRINCIPLES}`,
+    system: `${MERGERO_CONTEXT}\nYou write first-contact outreach for ${s.name}, ${s.title} at ${s.firm}, to the owner of a private company. Goal of touch 1: earn a 20-minute warm-up conversation, not a mandate. Style rules (non-negotiable): ${settings.style_rules}\nProof points you may use sparingly (max one per message): ${settings.value_props.join(" | ")}.\nChannel conventions: email = 90-140 words with a plain subject line that reads like a colleague wrote it (no clickbait); linkedin = 40-80 words, no subject, first-name friendly; call_script = a 60-second opener with one question.\nSequence: step 1 day 0 opens with one specific observation about their company and one concrete statement of buyer demand; step 2 (day 5-7) adds a new angle (a comparable transaction pattern, timing, or a data point) in half the length; step 3 (day 12-16) closes the loop politely and leaves the door open. Never mention AI, never mention that this is a sequence, never use placeholders like [Name].\nSpecific observations must come from the verified research facts or the enrichment profile; prefer a recent, dated fact. Never quote the company's own financial figures (revenue, profit, margins) back to the owner.\nConversation framing for this sequence: ${FRAMING_GUIDE[framing]}\nMergero messaging principles:\n${MESSAGING_PRINCIPLES}\nWrite like a person: vary sentence length, use one or two contractions, one idea per paragraph, no lists, no headings, no bold, at most one question, and nothing that could be pasted unchanged into an email to a different company.${voiceBlock(settings)}`,
     user: `Write the 3-message sequence in ${LANG[language] || language} on channel "${channel}" (for a call_script or linkedin channel, keep the 3 steps but adapt length).\n\nProspect:\n${companyFacts(company)}\n\nEnrichment:\n${JSON.stringify(company.enrichment || {}, null, 1)}\n\n${verified ? `Verified research facts (each has a source):\n${verified}\n\n` : ""}Why now (analyst view): ${company.score?.why_now || "n/a"}\nRecommended timing: ${company.score?.recommended_timing || "n/a"}\n\nBuyer demand: ${matchLine}\n\nSign as ${s.name}, ${s.title}, ${s.firm}${s.phone ? ", " + s.phone : ""}.`,
   });
   return out.messages.slice(0, 3).map((m, i) => ({ ...m, step: i + 1, language, framing }));
 }
 
 // ---------- 5. Humanizer critic (catches AI/template tells, rewrites) ----------
-export async function humanize(message, company, settings) {
+// The advisor's own past emails, when provided in Settings: the strongest anti-"AI voice" signal there is.
+function voiceBlock(settings) {
+  const v = String(settings.voice_samples || "").trim();
+  if (!v) return "";
+  return `\nVOICE SAMPLES (real emails written by ${settings.sender?.name || "the sender"}; match their rhythm, sentence length, word choice, greeting and sign-off; never copy sentences):\n"""\n${v.slice(0, 6000)}\n"""`;
+}
+
+// `lint` (optional) = findings from server/humanlint.js for this exact draft; the editor must resolve each one.
+export async function humanize(message, company, settings, { lint } = {}) {
+  const findings = lint?.flags?.length
+    ? `\nSpecific findings from the human-language linter — resolve every one:\n${lint.flags.map((f) => `- ${f.rule}${f.excerpt ? ` ("${f.excerpt}")` : ""}: ${f.fix}`).join("\n")}` +
+      (lint.personalization?.generic ? "\n- The draft uses no specific fact about this company: work in one concrete, sourced detail." : "") +
+      (lint.similarity?.max >= 0.12 ? `\n- Passages are reused from an email to another prospect (${lint.similarity.with}): rewrite them in different words.` : "")
+    : "";
   return parse(settings, {
     schema: HumanizerSchema,
     effort: "medium",
-    system: `You are a ruthless editor who has read ten thousand cold emails and can spot machine-written or templated text instantly. Flag every tell: stock openers ("I hope this finds you well", "I came across"), em dashes, tricolons (lists of three adjectives), words like delve/leverage/synergies/landscape/unlock/streamline/robust/seamless, exclamation marks, generic flattery ("impressive growth"), mirrored sentence rhythm, over-hedging, marketing tone, and anything that could be sent to 500 companies unchanged. Then rewrite so it reads like one specific busy senior advisor wrote it to one specific owner, keeping every concrete fact and the same language, length band and channel. Keep the sign-off. House style: ${settings.style_rules}`,
-    user: `Channel: ${message.channel}. Language: ${message.language || "en"}. Recipient: ${company.owner?.name || "the owner"} of ${company.name} (${company.industry}).\n\nSubject: ${message.subject || "(none)"}\n\nBody:\n${message.body}`,
+    system: `You are a ruthless editor who has read ten thousand cold emails and can spot machine-written or templated text instantly. Flag every tell: stock openers ("I hope this finds you well", "I came across"), em dashes, tricolons (lists of three adjectives), words like delve/leverage/synergies/landscape/unlock/streamline/robust/seamless, exclamation marks, generic flattery ("impressive growth"), mirrored sentence rhythm, over-hedging, marketing tone, and anything that could be sent to 500 companies unchanged. Then rewrite so it reads like one specific busy senior advisor wrote it to one specific owner, keeping every concrete fact and the same language, length band and channel. Keep the sign-off. Plain text only: no lists, no headings, no bold. House style: ${settings.style_rules}${voiceBlock(settings)}`,
+    user: `Channel: ${message.channel}. Language: ${message.language || "en"}. Recipient: ${company.owner?.name || "the owner"} of ${company.name} (${company.industry}).${findings}\n\nSubject: ${message.subject || "(none)"}\n\nBody:\n${message.body}`,
   });
 }
 
@@ -455,6 +500,33 @@ export async function triage(company, inboundText, settings) {
     system: `${MERGERO_CONTEXT}\nYou triage replies from business owners to ${s.name} (${s.title}, ${s.firm}). Classify intent and sentiment, extract every business fact the owner reveals (revenue split, client concentration, EBITDA, timing, succession intent, decision makers, valuation expectations, objections) as structured facts, list the owner's direct questions as open_questions, recommend the pipeline stage, state the single next step, and draft the reply ${s.name} should send (it must answer every open question): short, warm, specific, moving toward a 20-30 minute call; answer their questions honestly (buyer types yes, buyer names no; process = confidential, off-market, owner decides pace). Same language as the owner. Style: ${settings.style_rules}\nMergero messaging principles (also apply to replies; if the owner is hesitant, offer the softer options — growth capital or a partial stake — before any talk of a sale):\n${MESSAGING_PRINCIPLES}`,
     user: `Prospect:\n${companyFacts(company)}\nEnrichment summary: ${company.enrichment?.summary || "n/a"}\nOffering: ${company.enrichment?.offering?.summary || "n/a"} | Customer segments: ${(company.enrichment?.customer_segments || []).map((s) => s.segment).join("; ") || "n/a"} | Footprint: ${company.enrichment?.footprint?.headquarters || "n/a"}\n${researchBrief(company, { facts: 6 })}\nBuyer matches: ${(company.matches || []).map((m) => `${m.buyer_name} (${m.buyer_type})`).join(", ") || "none yet"}\n\nRecent conversation:\n${history || "(none)"}\n\nNEW INBOUND REPLY FROM OWNER:\n${inboundText}`,
   });
+}
+
+// ---------- 6b. Reply understanding agent (reads the owner's words, re-scores readiness and timing) ----------
+// Runs after triage on every owner reply. The first score came from outside data (age, tenure, filings); a reply is the
+// owner speaking for himself, which is the strongest readiness evidence there is. Evidence quotes are checked against the
+// reply text so a score never moves on words the owner did not write.
+export async function rescoreFromReply(company, entry, triage, settings) {
+  const cur = company.score || {};
+  const history = (company.conversation || []).filter((e) => e.id !== entry.id).slice(-6).map((e) => `[${e.direction} ${e.channel} ${e.at?.slice(0, 10)}]\n${e.text}`).join("\n\n");
+  const out = await parse(settings, {
+    schema: ReplyScoreSchema,
+    effort: "medium",
+    max_tokens: 6000,
+    system: `${MERGERO_CONTEXT}\nYou are Mergero's reply analyst. An owner has answered our outreach. Read what they actually wrote, in whatever language, and update the prospect's readiness score (probability the owner is open to a transaction, including growth capital or a minority stake, within 6-18 months), attractiveness and recommended timing.
+How to read owner replies (calibrate; most replies move readiness by 5-20 points, only explicit statements move it more):
+- Raises strongly: mentions succession, retirement, age, "next chapter", children not taking over, asks what the company is worth or what buyers pay, asks about the process, proposes a call, forwards to a co-owner to set one up.
+- Raises moderately: curiosity about which buyers, asks for more information, open to growth capital or a partner, positive tone with a question.
+- Timing, not readiness: "not now but maybe in two years", "after this season", "we are in the middle of an expansion" → keep readiness roughly where it is or slightly lower, move the timing.
+- Lowers: "we are not interested", "the family will continue", recently took investment, irritation at being contacted, a firm no. An explicit request to stop means readiness near 0 and timing "not yet".
+- Neutral: an out-of-office, a referral to someone else without comment, a one-line "thanks".
+Politeness is not interest; brevity is not rejection. Weigh what the owner says about himself above tone. Quote the exact words that drove each change; never invent a quote.\n${icpForPrompt()}`,
+    user: `Prospect:\n${companyFacts(company)}\n\nCurrent score: readiness ${cur.readiness ?? "not scored"}, attractiveness ${cur.attractiveness ?? "n/a"}, timing ${cur.recommended_timing || "n/a"}.\nWhy now (analyst view before the reply): ${cur.why_now || "n/a"}\nSignals so far: ${(cur.signals || []).slice(0, 8).map((g) => `${g.signal} (${g.direction})`).join("; ") || "none"}\n\nTriage of this reply: intent ${triage.intent}, sentiment ${triage.sentiment}; facts: ${(triage.extracted_facts || []).map((f) => `${f.field}=${f.value}`).join("; ") || "none"}.\n\nEarlier conversation:\n${history || "(none)"}\n\nTHE OWNER'S REPLY:\n"""\n${entry.text}\n"""\n\nUpdate the score.`,
+  });
+  // Keep only evidence the owner actually wrote.
+  const reply = entry.text_full || entry.text;
+  const evidence = (out.evidence || []).filter((e) => e.quote && (quoteFound(e.quote, reply) || (norm(e.quote).length >= 3 && norm(reply).includes(norm(e.quote)))));
+  return { ...out, evidence, dropped_quotes: (out.evidence || []).length - evidence.length };
 }
 
 // ---------- 7. Owner intake agent (conversational data gathering at scale) ----------

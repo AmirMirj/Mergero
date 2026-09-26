@@ -203,3 +203,86 @@ Pipeline is now **research → enrich → score → match → outreach**. `POST 
 - `POST /api/companies/:id/outreach` and `POST /api/companies/:id/run` accept `framing`: `open` (default) | `growth` | `minority` | `exit`. Each generated Message carries `framing`.
 - `GET /api/stats` also returns `hours_saved` (analyst hours the agents replaced, from `server/playbook.js` TIME_SAVED_MINUTES).
 - `Settings` has `workspace_id` (sent as the `anthropic-workspace-id` header for org-level API keys).
+- `GET /api/playbook` returns the playbook itself: `{ icp, mandate_path, meetings_before_mandate, messaging_principles, readiness_signals, value_prop, time_saved_minutes, stages }`.
+
+## Real email, inbox and scheduler (added)
+
+Message `status` now runs `draft → approved → scheduled → sent → replied | bounced`, with `rejected` and `cancelled` as end states. New Message fields: `send_at` (ISO, while scheduled), `due` (true when the scheduler could not send it itself: LinkedIn or call script, no owner email, Resend not configured, or three failed attempts), `cancel_reason`, and `delivery { provider: "resend"|"mailto"|"manual", id, status: "sent"|"delivered"|"delayed"|"opened"|"clicked"|"bounced"|"complained"|"failed"|"handed_off"|"error", message_id, via: "manual"|"scheduler", error, attempts, events:[{ type, at }] }`.
+
+ConversationEntry gains `source` (`paste`|`resend`|`mailto`|`manual`), `from`, `subject`, `provider_id` (Resend email id), `rfc_message_id`, `in_reply_to`, `references`, `routed_by` (`plus_address`|`in_reply_to`|`sender`|`manual`), `text_full` (before quoted history was stripped), `triage_error` and `cancelled_followups`. `triage` gains `open_questions[]` and `sentiment_trend` (`up`|`down`|`flat` against the previous reply). `owner` gains `email_status` (`bounced`|`complained`) and `alt_emails[]`.
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| POST | `/api/messages/:id/approve` | | `Message` — `approved`; a follow-up whose first touch already went out becomes `scheduled` with `send_at` (never when the owner has replied since). Also accepts `rejected` and `cancelled` messages |
+| POST | `/api/messages/:id/reject` | | `Message` — `rejected` (from draft, approved or scheduled) |
+| POST | `/api/messages/:id/unschedule` | | `Message` — scheduled → approved (manual send only) |
+| POST | `/api/messages/:id/send` | | `{ message, mailto, delivered }` — requires approved or scheduled. Email goes through Resend when configured (`delivered: true`), else `mailto` is returned; LinkedIn and call scripts are logged. Sending a first touch schedules the approved follow-ups |
+| POST | `/api/companies/:id/replies` | `{ text, channel? }` | `Company` — logs the reply, cancels scheduled follow-ups, moves the stage to replied, triages (reply draft, recommended stage) |
+| POST | `/api/companies/:id/replies/:entryId/triage` | | `Company` — re-runs triage for one inbound entry; reuses its unsent reply draft |
+| POST | `/api/mail/inbound/resend` | Resend webhook envelope `{ type, data }` | `email.received` → `{ received, matched, company_id, entry_id, routed_by }` or `{ received, matched:false, unmatched_id, suggestions }`; delivery events → `{ ok, message_id, delivery }`. Verified with the Svix headers when a signing secret is set (401 otherwise); duplicate `email_id`s are ignored; triage runs after the response |
+| POST | `/api/mail/inbound/simulate` | `{ from, subject?, text, company_id?, to?, wait? }` | same as a received email, without Resend; `wait` (default true) returns after triage |
+| GET | `/api/mail/unmatched` | | `[{ id, at, from, to, subject, text, suggestions:[{ company_id, name, country, score }] }]` |
+| POST | `/api/mail/unmatched/:id/assign` | `{ company_id }` | `Company` — runs the reply flow; the sender's address is remembered on the owner (`email` if empty, else `alt_emails`) |
+| DELETE | `/api/mail/unmatched/:id` | | `{ ok }` |
+| GET | `/api/inbox` | | `{ items:[{ company_id, name, country, stage, channel, owner, status: "needs_reply"\|"waiting"\|"done", last_at, last_direction, last_channel, last_text, last_subject, triage, triage_pending, triage_error, reply_draft:{id,status}, scheduled, due, readiness }], counts, unmatched, mail }` — owners waiting for an answer first |
+| GET | `/api/mail/status` | | `{ configured, from, inbound_domain, inbound_example, webhook_url, webhook_signing, sweep_minutes, scheduled, due, unmatched }` |
+| POST | `/api/mail/sweep` | `{ now? }` | `{ sent, due, cancelled, errors }` — runs the follow-up scheduler now; `now` (ISO) pretends it is later |
+
+`GET /api/stats` adds `messages_scheduled`, `messages_due` and `inbox_unmatched`; `replies_unhandled` now counts inbox threads in `needs_reply`. `Settings` gains `mail { configured, api_key_set, api_key_masked, from, inbound_domain, webhook_secret_set }`; `PUT /api/settings` accepts `mail { resend_api_key?, from?, inbound_domain?, webhook_secret?, clear_resend_api_key?, clear_webhook_secret? }` (a blank secret keeps the current one; environment values fill blanks).
+
+Inbox status per prospect: `needs_reply` when the owner spoke last (intake summaries excepted) or a reply draft is unsent; `waiting` when we spoke last or a follow-up is scheduled; `done` when disqualified or the mandate is signed. Routing of an inbound email: the plus-address it was sent to (`owners+<company id>@<inbound domain>`) → our `Message-ID` (`<message id>.<company id>@…`) in `In-Reply-To`/`References` → the sender against `owner.email` and `owner.alt_emails` → the unmatched queue.
+
+## Human-language engine (seller emails)
+- Every seller draft (sequence steps and reply drafts) carries `lint: { before, after, passes }` from `server/humanlint.js`: `score` (0 = fully human), `grade` (human | acceptable | robotic), `flags[{rule, severity, excerpt, fix}]`, `personalization { points, count, generic }`, `similarity { max, with, shared }`, `metrics`, `blocks_send`.
+- Flow: writer → linter → humanizer (receives the findings) → linter again; a second editing pass only if the draft still fails.
+- `PUT /api/messages/:id` re-lints edited text and accepts `lint_override: true|false`. `POST /api/messages/:id/lint` re-runs the linter. `POST /api/messages/:id/humanize` runs the full loop.
+- Send gate: `deliver()` refuses (409) any draft whose latest lint has `blocks_send` unless `lint_override` is set — covers manual sends, scheduled follow-ups and reply drafts.
+- Settings: `voice_samples` (the advisor's own past emails; writer and humanizer imitate the voice) and `lint_threshold` (default 35).
+- Pairings: `GET /api/pairings`, `POST /api/pairings {company_id?|buyer_id?}` (best counterpart chosen automatically, rationale with six checks), `POST /api/pairings/:id/accept` (drafts the anonymised buyer note when the owner conversation is warm), `POST /api/pairings/:id/dismiss`. Suggestions: `GET /api/suggestions` (owners to contact next, buyers to contact next).
+
+## Scale numbers, learning loop, register roles, sources
+- `GET /api/stats` → `scale { api_spend_usd, cost_per_prospect_usd, minutes_per_prospect, prospects_per_hour_at_3, prospects_measured }` — measured from real token usage (every Claude call is attributed to the company being processed) and wall time of full pipeline runs.
+- `GET /api/registry/reach` → how many companies each open register can supply for the €2–50M band (Norway live: AS with 10–250 staff; FI/DK/SE/DACH explained).
+- `POST /api/companies/:id/people` (Norway) → CEO, chair and board with birth dates from Brønnøysund's roles register; fills `owner.age` (+ `owner.age_source`) and `company.people[]`. Runs automatically on Norwegian registry imports and before enrichment.
+- `GET /api/learning` → reply / meeting / mandate rates by framing, country, sector, language and source, plus `best_framing_by_country`; blends a labelled sample history (`data/mock/outcomes_history.json`) while fewer than 8 real first touches exist. The scoring agent receives `summaryFor(company)`; the company page shows the best framing for its country.
+- Prospects carry `source` (dropdown incl. referral partners, inbound, events) and `referrer`; the prospects list filters by source kind.
+
+## Owner-facing demand page (public, anonymised)
+- `GET /demand` — public page: country, sector and revenue band → "N buyers in the Mergero network are looking for companies like yours", buyer types, deal types (soft-entry line when minority/growth exist), three anonymised thesis quotes, owners already in conversation, and a "request a confidential conversation" form.
+- `GET /api/public/options` → countries and sectors for the form.
+- `GET /api/public/demand?country=&sector=&revenue_eur=` or `?token=<intake token>` → the anonymised snapshot (never buyer names, ids, emails or company names). Also rendered on the intake page once the owner finishes the questionnaire.
+- `POST /api/public/leads { name, company, email, country, sector, revenue_eur, message }` → creates a prospect with source `Inbound: demand page` (20 leads/hour limit).
+
+## Buy-side mandate generation
+- `POST /api/buyside/mandates { thesis_text, buyer_name?, buyer_type?, countries? }` → parses the thesis into criteria (sectors, NACE codes, geographies, size, deal types, owner situation), scans the open registers (FI PRH, NO Brønnøysund) by NACE code and headcount proxy, looks up Norwegian owner ages, scores every target against the thesis, and returns the mandate with `targets[]` (fit, reason, owner signal, pipeline status) and `stats` (targets, score 70+, owners in conversation, countries, scan log). About one minute.
+- `POST /api/buyside/mandates/:id/pitch` → writes the pitch (email + one-pager) and parks it as a buyer-side draft on a buyer record created from the criteria; send it with `POST /api/buyer-messages/:id/send`.
+- `POST /api/buyside/mandates/:id/import { top }` → adds the best targets to the sell-side pipeline (source `Buy-side mandate: <buyer>`), with register owner ages where known.
+- `GET /api/buyside/mandates`, `GET /api/buyside/mandates/:id`, `DELETE /api/buyside/mandates/:id`.
+
+## Demo mode for real email
+- `settings.demo_email` (or `DEMO_EMAIL` in `.env`): when set, `mail.send()` redirects **every** outbound email (owner sequences, scheduled follow-ups, reply drafts, buyer notes, pitches) to that address, prefixes the subject with `[DEMO → intended recipient]` and notes it in the body. One email per action; nothing reaches owners or buyers. Resend's `onboarding@resend.dev` sender works without a verified domain but only delivers to the account owner's address, which is exactly the demo case.
+
+## Advisors, daily send caps and the first-touch queue
+Mergero (Timo, 2026-09-26): first touches come from the individual advisor, about 50–100 emails per day per sender.
+- `settings.advisors[]`: `{ id, name, title, email, phone, markets: ["FI", …], daily_cap }` (cap 1–200, default 75). Editable under Settings → Advisors or `PUT /api/settings { advisors }`. Editing `sender` without `advisors` updates the first advisor.
+- `company.advisor_id` (optional, `PUT /api/companies/:id`): owner of the prospect. Unset → the first advisor whose `markets` include the country, else the first advisor.
+- Outreach, humanizer, triage reply drafts and the owner intake are written and signed as that advisor. Real email goes out as `"<advisor name> <address>"`: the verified sending address, or the advisor's own address when it is on the same domain. `message.sent_by` records the advisor.
+- Cap: `deliver()` refuses an email once the advisor has sent `daily_cap` emails today. `POST /api/messages/:id/send` then returns `{ deferred: true, note, message }` with the message scheduled for the next working morning (08:00, weekends skipped, `deferred_reason: "daily cap"`). The sweep defers the same way.
+- `POST /api/outreach/queue { limit? }`: schedules every approved step-1 email, highest readiness first, evenly spaced over each advisor's 08:00–17:00 working day up to the cap, overflow to later working days. Returns `{ queued, skipped, advisors: [{ advisor, daily_cap, queued, days, first_at, last_at }] }`. Follow-ups are scheduled after each first touch goes out, as before.
+- `GET /api/advisors/capacity`: per advisor `{ markets, daily_cap, sent_today, prospects, first_touches_queued }`, plus `emails_per_day`, `new_owners_per_month` (21 working days, a third of sends are first touches) and `conversations_per_month` at `funnel_assumptions.contact_to_reply`.
+- Funnel default `contact_to_reply` is now 0.475 (Mergero: 1,000 contacts → 450–500 owner conversations); saved settings still on the old 0.18 are migrated. The projected-mandates formula caps each prospect's reply odds at 95% (readiness 50 = benchmark rate).
+
+## MGX Deal Engine buyer sync
+Mergero queries MGX over API/MCP rather than exporting it; the fields that matter are sector, financials/size, deal type and geography.
+- `POST /api/mgx/sync`: `GET ${MGX_API_URL}${MGX_BUYERS_PATH || "/buyers"}` with `Authorization: Bearer ${MGX_API_KEY}` (optional); accepts an array or `{ mandates | buyers | items }`. Each record is normalised (`mandate_id|id`, `buyer_label|name`, `buyer_type`, `sector(s)`, `geography(ies)`, `size.{revenue,ebitda}_{min,max}_eur` or flat, `deal_type(s)`, `thesis`) and upserted by `mgx_id`; mandates MGX no longer lists become inactive. Without `MGX_API_URL` the labelled sample `data/mock/mgx_buyers.json` is used (`source: "mgx-sample"`).
+- `GET /api/mgx/status`: `{ connected, mode: "api" | "sample", url, last_sync, mandates }`.
+- MCP tools: `mergero_mgx_sync`, `mergero_advisor_capacity`, `mergero_queue_first_touches`.
+
+## Advisor cap on buyer-side sends
+`POST /api/buyer-messages/:id/send` sends as the advisor who owns the seller conversation (first advisor for a pitch), counts against that advisor's daily cap (429 with `capped` and `next_at` when reached), stamps `sent_by`, and its emails are included in `sentToday()` alongside owner emails. The Buy-side page remains at `#/buyside` (nav link hidden: sell-side only in the demo).
+
+## Reply understanding → score update
+After triage, every owner reply (pasted, received through the Resend webhook, or via `/api/integrations/inbound`) goes to `agents.rescoreFromReply` (schema `ReplyScoreSchema`). It reads the owner's own words in any language and returns the updated `readiness`, `attractiveness` and `recommended_timing`, a `reason`, `evidence[] { quote, reading, effect: raises|lowers|neutral, weight }`, new `signals[]`, `risks[]` and a `confidence`. Evidence quotes are checked against the reply text; unverifiable quotes are dropped (`dropped_quotes`).
+- `company.score` is updated in place. Reply-derived signals carry `source: "reply", entry_id`. `score.rescored_at` is set, and `score.history[] { at, source: "reply", entry_id, from, to, reason, evidence, confidence }` keeps each change.
+- The inbound `ConversationEntry` gets `score_update { from, to, delta, reason, evidence, confidence }`, or `score_update_error`. `POST /api/companies/:id/replies/:entryId/triage` re-runs triage and the re-score; the new update replaces that reply's earlier one and is measured from the same starting score.
+- Best-effort: if the re-score fails, the triage, stage move and reply draft still stand.

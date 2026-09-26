@@ -14,9 +14,11 @@
   const sub = document.getElementById('intake-sub');
   const statusEl = document.getElementById('intake-status');
   const completeEl = document.getElementById('complete-state');
+  const demandEl = document.getElementById('demand-snapshot');
 
   let status = 'pending';
   let busy = false;
+  let demandLoaded = false;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -79,6 +81,61 @@
       form.classList.add('hidden');
       input.disabled = true;
       sendBtn.disabled = true;
+      loadDemand();
+    }
+  }
+
+  // Value at first contact: once the conversation is complete, show the owner an anonymised view of buyer demand
+  // for companies like theirs. Purely additive — any failure leaves the page exactly as it was.
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  function renderDemand(d) {
+    const n = Number(d.matched_mandates) || 0;
+    demandEl.innerHTML = '';
+    demandEl.appendChild(el('div', 'ds-title', 'What buyers are looking for in companies like yours'));
+
+    const head = el('div', 'ds-head');
+    head.appendChild(el('div', 'ds-n', n));
+    head.appendChild(el('div', 'ds-text', (n === 1 ? 'buyer' : 'buyers') + ' in the Mergero network ' + (n === 1 ? 'has' : 'have') + ' an active mandate matching your profile'));
+    demandEl.appendChild(head);
+
+    const t = d.buyer_types || {};
+    const parts = [
+      [Number(t.PE) || 0, 'private equity fund', 'private equity funds'],
+      [Number(t.family_office) || 0, 'family office', 'family offices'],
+      [Number(t.strategic) || 0, 'strategic buyer', 'strategic buyers'],
+    ].filter(function (p) { return p[0] > 0; }).map(function (p) { return p[0] + ' ' + (p[0] === 1 ? p[1] : p[2]); });
+    if (parts.length) demandEl.appendChild(el('div', 'ds-types', parts.join(' · ')));
+
+    if (d.soft_entry_available) {
+      demandEl.appendChild(el('div', 'ds-soft', 'Several would consider growth capital or a minority stake — you would keep control.'));
+    }
+
+    const theses = Array.isArray(d.sample_theses) ? d.sample_theses.filter(Boolean) : [];
+    if (theses.length) {
+      const ul = el('ul', 'ds-quotes');
+      theses.forEach(function (q) { ul.appendChild(el('li', null, '“' + q + '”')); });
+      demandEl.appendChild(ul);
+    }
+
+    demandEl.appendChild(el('div', 'ds-foot', 'Anonymised and counted once per buyer. Your advisor can tell you more about who is behind these mandates.'));
+  }
+
+  async function loadDemand() {
+    if (demandLoaded || !demandEl || !token) return;
+    demandLoaded = true;
+    try {
+      const d = await api('/api/public/demand?token=' + encodeURIComponent(token));
+      if (!d || !(Number(d.matched_mandates) > 0)) return;
+      renderDemand(d);
+      demandEl.classList.remove('hidden');
+    } catch (e) {
+      // nothing to show; the thank-you state stands on its own
     }
   }
 

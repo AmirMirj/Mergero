@@ -1,0 +1,7 @@
+[
+  { "name": "Vaasa Energy Services Oy", "buyer_name": "Nordic lower-mid-market PE fund", "fit": 0.81, "reason": "Recurring maintenance contracts with utilities match the fund's preference for service businesses with succession situations; founder is 58 with no deputy.", "source": "teammate-matcher" },
+  { "name": "Vaasa Energy Services Oy", "buyer_name": "Listed Nordic engineering group", "fit": 0.74, "reason": "Wind and district-heating field service adds a west-coast service footprint to the group's energy-infrastructure division.", "source": "teammate-matcher" },
+  { "name": "Ravensberg Fördertechnik GmbH", "buyer_name": "DACH industrial buyout fund", "fit": 0.88, "reason": "Family-owned NRW machine builder with a 400-system installed base and a 64-year-old owner without successors fits the fund's buy-and-build thesis.", "source": "teammate-matcher" },
+  { "name": "Ravensberg Fördertechnik GmbH", "buyer_name": "Swiss entrepreneurial family office", "fit": 0.62, "reason": "Manufacturing exposure in DACH with an after-sales unit; the family office prefers minority entries, which suits a hesitant owner.", "source": "teammate-matcher" },
+  { "name": "Pirkan Fluid Systems Oy", "buyer_name": "Finnish evergreen family office", "fit": 0.79, "reason": "Long-hold Finnish family office looking for industrial niche leaders with service revenue.", "source": "teammate-matcher" }
+]
