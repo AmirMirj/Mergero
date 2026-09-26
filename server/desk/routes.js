@@ -40,6 +40,32 @@ const companyByDesk = (id) => { ensureIds(); return db.load().companies.find((c)
 const buyerByDesk = (id) => { ensureIds(); return db.load().buyers.find((b) => b.desk_id === Number(id)) || null; };
 function log(event, payload) { const d = desk(); d.dialogues++; d.last_event = { ts: iso(), event, ...payload }; db.save(); }
 
+// Screened companies used to live only on desk.deals. The Pipeline homepage lists
+// /api/prospects (db.companies), so "Add to pipeline" then going home dropped them.
+function countryFromProfile(p) {
+  const hint = String(p?.geographic_hint || p?.source_url || "").toLowerCase();
+  return /germany|dach|gmbh|\.de(?:\/|$)/.test(hint) ? "DE" : /sweden|\.se(?:\/|$)/.test(hint) ? "SE" : /norway|\.no(?:\/|$)/.test(hint) ? "NO" : /denmark|\.dk(?:\/|$)/.test(hint) ? "DK" : "FI";
+}
+function findCompanyFromProfile(p) {
+  if (p?.engine_id) { const c = db.findCompany(p.engine_id); if (c) return c; }
+  if (p?.company_id) { const c = companyByDesk(p.company_id); if (c) return c; }
+  const s = db.load();
+  const site = String(p?.source_url || "").replace(/\/$/, "").toLowerCase();
+  const name = String(p?.company_name || "").trim().toLowerCase();
+  return s.companies.find((c) => (site && (c.website || "").replace(/\/$/, "").toLowerCase() === site) || (name && c.name.toLowerCase() === name)) || null;
+}
+function upsertCompanyFromProfile(p, extra = {}) {
+  const name = extra.company || p?.company_name; if (!name) return null;
+  let c = findCompanyFromProfile({ ...p, company_name: name });
+  if (c) {
+    if (!c.website && p?.source_url) c.website = p.source_url;
+    if (!c.industry && p?.sector && p.sector !== "Unverified Sector") c.industry = p.sector;
+    db.touch(c); ensureIds(); return c;
+  }
+  c = db.normalizeCompany({ name, country: extra.country || countryFromProfile(p), website: p?.source_url || "", industry: p?.sector && p.sector !== "Unverified Sector" ? p.sector : "", owner: { name: extra.ceo || p?.owner_name || "" }, source: extra.source || "Buy-side screen", notes: p?.products && p.products !== "Pending Analysis" ? `Website: ${p.products}` : "" });
+  db.load().companies.unshift(c); ensureIds(); db.save(); return c;
+}
+
 // ---------- mapping our records → his shapes ----------
 const COUNTRY_NAME = { FI: "Finland", SE: "Sweden", NO: "Norway", DK: "Denmark", DE: "Germany", AT: "Austria", CH: "Switzerland", IS: "Iceland" };
 const REGION = { FI: "Nordics", SE: "Nordics", NO: "Nordics", DK: "Nordics", IS: "Nordics", DE: "DACH", AT: "DACH", CH: "DACH" };
@@ -172,7 +198,9 @@ function bundle(c) {
     scored.readiness = c.score.readiness; scored.attractiveness = c.score.attractiveness ?? null; scored.why_now = c.score.why_now || null;
   }
   const hypothesis = E.buildHypothesis(record, triggers, scored);
-  if (c.score?.why_now) hypothesis.why_now = [...hypothesis.why_now, `Mergero scoring agent: ${c.score.why_now}`];
+  hypothesis.why_mergero = E.toPoints(hypothesis.why_mergero);
+  hypothesis.why_now = hypothesis.why_now.flatMap((line) => E.toPoints(line, { max: 3, min: 6 }));
+  if (c.score?.why_now) hypothesis.agent_notes = E.toPoints(c.score.why_now);
   if (c.enrichment?.data_gaps?.length) hypothesis.questions_for_owner = [...hypothesis.questions_for_owner, ...c.enrichment.data_gaps.slice(0, 2).map((g) => `Data gap: ${g}`)];
   const conversation = deskConversation(c, scored, hypothesis);
   const campaign = deskCampaign(c);
@@ -186,6 +214,7 @@ function prospectRow(c, b = bundle(c)) {
   return {
     company_id: c.desk_id, company_name: c.name, country: c.country, country_name: COUNTRY_NAME[c.country] || c.country, sector: c.industry || "", data_origin: b.record.company.data_origin,
     score: b.scored.score, tier: b.scored.tier, timing: b.scored.timing, fit: b.scored.fit, urgency: b.scored.urgency, top_trigger: b.triggers[0] || null, top_buyer: b.scored.best_buyers[0] || null,
+    mandate_count: (b.scored.best_buyers || []).length,
     mandate_type: b.hypothesis.mandate_type, side: b.hypothesis.side, stage: b.conversation.stage, stage_label: E.STAGE_LABELS[b.conversation.stage], closed: b.conversation.closed,
     mandate_likelihood: q.mandate_likelihood ?? null, follow_up_on: b.conversation.follow_up_on, next_action: b.next_action, readiness: c.score?.readiness ?? null, engine_id: c.id,
     // His row sets "timing" twice; the page reads the second one (the owner's reply timing) in the likelihood tooltip.
@@ -246,14 +275,16 @@ export function register(app, { baseUrl } = {}) {
     const buyer = deskBuyers().find((b) => b.buyer_name.toLowerCase() === buyerName.toLowerCase());
     const profile = { company_name: target, sector: req.body.sector || buyer?.target_sector || "Unverified Sector", products: req.body.products || "Pending Analysis", customers: req.body.customers || "Pending Analysis", ebitda: req.body.ebitda || "Pending Audit", verified: false, source_url: req.body.source_url || "", geographic_hint: buyer?.geographic_focus || "" };
     const match = buyer ? E.rankBuyers([buyer], profile)[0] : {};
-    const d = desk(); const deal = { id: d.next_deal_id++, buyer_id: buyer?.id ?? null, buyer_name: buyerName, profile, match, stage: E.STAGES[0], proposal: E.icNote(buyerName, profile, match) };
+    const company = upsertCompanyFromProfile(profile, { source: "Buy-side screen" });
+    const d = desk(); const deal = { id: d.next_deal_id++, buyer_id: buyer?.id ?? null, buyer_name: buyerName, profile, match, stage: E.STAGES[0], proposal: E.icNote(buyerName, profile, match), company_id: company?.id || null, desk_company_id: company?.desk_id || null };
     d.deals.unshift(deal); log("deal_created", { buyer: buyerName, company: target }); res.json({ status: "success", data: serializeDeal(deal) });
   }));
   app.post("/api/deals/from-match", wrap(async (req, res) => {
     const profile = req.body?.profile || {}; const buyer = deskBuyers().find((b) => b.id === Number(req.body?.buyer_id));
     if (!buyer) return errorJson(res, 404, "Unknown buyer_id");
     const match = E.rankBuyers([buyer], profile)[0] || {};
-    const d = desk(); const deal = { id: d.next_deal_id++, buyer_id: buyer.id, buyer_name: buyer.buyer_name, profile, match, stage: E.STAGES[0], proposal: E.icNote(buyer.buyer_name, profile, match) };
+    const company = upsertCompanyFromProfile(profile, { source: "Buy-side screen" });
+    const d = desk(); const deal = { id: d.next_deal_id++, buyer_id: buyer.id, buyer_name: buyer.buyer_name, profile, match, stage: E.STAGES[0], proposal: E.icNote(buyer.buyer_name, profile, match), company_id: company?.id || null, desk_company_id: company?.desk_id || null };
     d.deals.unshift(deal); log("deal_from_match", { buyer: buyer.buyer_name, company: profile.company_name }); res.json({ status: "success", data: serializeDeal(deal) });
   }));
   app.patch("/api/deals/:id", wrap(async (req, res) => {
@@ -281,9 +312,8 @@ export function register(app, { baseUrl } = {}) {
   app.get("/api/targets", (req, res) => { ensureIds(); const rows = db.load().companies.filter((c) => c.intake?.summary || ["warming", "meeting_booked", "mandate_signed"].includes(c.stage)).map(targetRow); res.json({ status: "success", data: rows }); });
   app.post("/api/targets", wrap(async (req, res) => {
     const p = req.body?.profile || {}; const name = req.body?.company || p.company_name; if (!name) return errorJson(res, 400, "company required");
-    const hint = String(p.geographic_hint || "").toLowerCase(); const country = /germany|dach|gmbh/.test(hint) ? "DE" : /sweden/.test(hint) ? "SE" : /norway/.test(hint) ? "NO" : /denmark/.test(hint) ? "DK" : "FI";
-    const c = db.normalizeCompany({ name, country, website: p.source_url || "", industry: p.sector && p.sector !== "Unverified Sector" ? p.sector : "", owner: { name: req.body?.ceo || "" }, source: "Buy-side screen", notes: p.products && p.products !== "Pending Analysis" ? `Website: ${p.products}` : "" });
-    db.load().companies.unshift(c); ensureIds(); db.save(); log("sell_side_target", { company: name });
+    const c = upsertCompanyFromProfile({ ...p, company_name: name }, { ceo: req.body?.ceo, source: "Buy-side screen" });
+    log("sell_side_target", { company: name });
     res.json({ status: "success", data: targetRow(c) });
   }));
   app.post("/api/generate-outreach/:id", wrap(async (req, res) => {
@@ -301,17 +331,26 @@ export function register(app, { baseUrl } = {}) {
     const real = comps.filter(isReal).length, signals = comps.reduce((n, c) => n + deskSignals(c).length, 0);
     let son = { ok: false }; try { son = await (await import("../adapters/son_scraper.js")).available(); } catch { /* optional */ }
     const mailOn = Boolean((s.settings.mail?.resend_api_key || process.env.RESEND_API_KEY) && (s.settings.mail?.from || process.env.RESEND_FROM));
+    const mgx = s.buyers.filter((b) => /mgx/i.test(b.source || "")).length;
+    const entered = s.buyers.length - mgx;
+    const fi = comps.filter((c) => c.country === "FI").length;
+    const no = comps.filter((c) => c.country === "NO").length;
+    const demo = comps.length - real;
+    const succession = comps.reduce((n, c) => n + deskSignals(c).filter((x) => x.signal_type === "succession" || x.type === "succession").length, 0);
+    const modelOn = llm.provider(s.settings) === "verda" ? llm.verdaConfigured(s.settings) : Boolean(s.settings.api_key || process.env.ANTHROPIC_API_KEY);
+    const modelName = llm.provider(s.settings) === "verda" ? "Mistral" : "Claude";
+    const chip = (label, tone) => (label ? { label, tone } : null);
     res.json({ status: "success", data: [
-      { key: "buyers", name: "Buyer mandates", type: "internal", count: s.buyers.filter((b) => b.active !== false).length, status: "loaded", detail: `${s.buyers.length} mandates (${s.buyers.filter((b) => /mgx/i.test(b.source || "")).length} from MGX sync, ${s.buyers.filter((b) => !/mgx/i.test(b.source || "")).length} entered); sector, geography, size and deal type` },
-      { key: "companies", name: "Company universe", type: "internal", count: comps.length, status: "loaded", detail: `${real} real companies (registers, research, inbound), ${comps.length - real} illustrative` },
-      { key: "signals", name: "Signals and triggers", type: "public", count: signals, status: "loaded", detail: "Sourced research facts, register facts, owner ages, intake answers and triaged replies, decayed over 12 months" },
-      { key: "registry", name: "Finnish Trade Register (PRH)", type: "live", count: comps.filter((c) => c.country === "FI").length, status: "live", detail: "Free open API: legal name, registration date, industry, filed accounts (iXBRL)" },
-      { key: "brreg", name: "Norwegian register (Brønnøysund)", type: "live", count: comps.filter((c) => c.country === "NO").length, status: "live", detail: "Entities, filed accounts and the roles register: CEO and chair with birth dates = real owner age" },
-      { key: "website", name: "Company websites", type: "live", count: comps.filter((c) => c.research?.facts?.length).length, status: "on demand", detail: "Robots-aware crawl of the company's own site plus localised web search; every fact keeps its quote and URL" },
-      { key: "profiler", name: "Finnish company profiler (Son)", type: "live", count: comps.filter((c) => (c.research?.facts || []).some((f) => f.source === "son-scraper")).length, status: son.ok ? "live" : "not installed", detail: son.ok ? "PRH + XBRL line items + website signals with per-fact evidence" : `Optional Python component (${son.reason || "see docs/python-setup.md"})` },
-      { key: "intake", name: "Owner intake", type: "internal", count: comps.filter((c) => c.intake?.summary).length, status: "loaded", detail: "Confidential owner questionnaire: revenue split, client concentration, EBITDA, timing, motivation" },
-      { key: "email", name: "Email (Resend)", type: "live", count: comps.reduce((n, c) => n + (c.messages || []).filter((m) => m.sent_at).length, 0), status: mailOn ? (s.settings.demo_email ? `demo mode → ${s.settings.demo_email}` : "live") : "mailto only", detail: "Real sending with per-advisor daily caps, scheduled follow-ups, replies triaged on arrival" },
-      { key: "model", name: llm.provider(s.settings) === "verda" ? "Language model: Mistral Large 3 on Verda (EU)" : "Language model: Claude (Anthropic)", type: "live", count: comps.filter((c) => c.enrichment || c.score).length, status: llm.provider(s.settings) === "verda" ? (llm.verdaConfigured(s.settings) ? "configured" : "missing credentials") : (s.settings.api_key || process.env.ANTHROPIC_API_KEY ? "configured" : "missing key"), detail: llm.provider(s.settings) === "verda" ? `${llm.verdaConfig(s.settings).model} at ${llm.verdaConfig(s.settings).base_url || "?"}${llm.fallbackAllowed(s.settings) ? " · falls back to Claude" : " · strict EU-only"}` : `${s.settings.model} with web search, structured outputs` },
+      { key: "buyers", name: "Buyer mandates", type: "internal", count: s.buyers.filter((b) => b.active !== false).length, status: "loaded", tags: [chip("Internal", "slate"), chip("sector", "slate"), chip("geography", "sky"), chip("size", "amber"), chip(entered ? `${entered} entered` : null, "emerald")].filter(Boolean), detail: `${s.buyers.length} mandates (${mgx} from MGX sync, ${entered} entered); sector, geography, size and deal type` },
+      { key: "companies", name: "Company universe", type: "internal", count: comps.length, status: "loaded", tags: [chip("Internal", "slate"), chip(real ? `${real} real` : null, "emerald"), chip(fi ? `${fi} FI` : null, "sky"), chip(no ? `${no} NO` : null, "sky"), chip(demo ? `${demo} illustrative` : null, "slate")].filter(Boolean), detail: `${real} real companies (registers, research, inbound), ${demo} illustrative` },
+      { key: "signals", name: "Signals and triggers", type: "public", count: signals, status: "loaded", tags: [chip("Public", "sky"), chip(succession ? `${succession} succession` : "registers", "rose"), chip("owner age", "amber"), chip("12 months", "slate")].filter(Boolean), detail: "Sourced research facts, register facts, owner ages, intake answers and triaged replies, decayed over 12 months" },
+      { key: "registry", name: "Finnish Trade Register (PRH)", type: "live", count: fi, status: "live", tags: [chip("Live", "emerald"), chip("Finland", "sky"), chip("industry", "slate"), chip("iXBRL", "amber")].filter(Boolean), detail: "Free open API: legal name, registration date, industry, filed accounts (iXBRL)" },
+      { key: "brreg", name: "Norwegian register (Brønnøysund)", type: "live", count: no, status: "live", tags: [chip("Live", "emerald"), chip("Norway", "sky"), chip("roles", "slate"), chip("owner age", "amber")].filter(Boolean), detail: "Entities, filed accounts and the roles register: CEO and chair with birth dates = real owner age" },
+      { key: "website", name: "Company websites", type: "live", count: comps.filter((c) => c.research?.facts?.length).length, status: "on demand", tags: [chip("Live", "emerald"), chip("on demand", "amber"), chip("crawl", "slate"), chip("quotes", "sky")].filter(Boolean), detail: "Robots-aware crawl of the company's own site plus localised web search; every fact keeps its quote and URL" },
+      { key: "profiler", name: "Finnish company profiler (Son)", type: "live", count: comps.filter((c) => (c.research?.facts || []).some((f) => f.source === "son-scraper")).length, status: son.ok ? "live" : "not installed", tags: [chip("Live", "emerald"), chip("Finland", "sky"), chip(son.ok ? "PRH + XBRL" : "not installed", son.ok ? "amber" : "rose")].filter(Boolean), detail: son.ok ? "PRH + XBRL line items + website signals with per-fact evidence" : `Optional Python component (${son.reason || "see docs/python-setup.md"})` },
+      { key: "intake", name: "Owner intake", type: "internal", count: comps.filter((c) => c.intake?.summary).length, status: "loaded", tags: [chip("Internal", "slate"), chip("EBITDA", "amber"), chip("timing", "sky"), chip("confidential", "violet")].filter(Boolean), detail: "Confidential owner questionnaire: revenue split, client concentration, EBITDA, timing, motivation" },
+      { key: "email", name: "Email (Resend)", type: "live", count: comps.reduce((n, c) => n + (c.messages || []).filter((m) => m.sent_at).length, 0), status: mailOn ? (s.settings.demo_email ? `demo mode → ${s.settings.demo_email}` : "live") : "mailto only", tags: [chip("Live", "emerald"), chip(mailOn ? "Resend" : "mailto", mailOn ? "emerald" : "amber"), chip("follow-ups", "slate")].filter(Boolean), detail: "Real sending with per-advisor daily caps, scheduled follow-ups, replies triaged on arrival" },
+      { key: "model", name: llm.provider(s.settings) === "verda" ? "Language model: Mistral Large 3 on Verda (EU)" : "Language model: Claude (Anthropic)", type: "live", count: comps.filter((c) => c.enrichment || c.score).length, status: llm.provider(s.settings) === "verda" ? (llm.verdaConfigured(s.settings) ? "configured" : "missing credentials") : (s.settings.api_key || process.env.ANTHROPIC_API_KEY ? "configured" : "missing key"), tags: [chip("Live", "emerald"), chip(modelName, "violet"), chip(modelOn ? "configured" : "no key", modelOn ? "emerald" : "rose"), chip("web search", "sky")].filter(Boolean), detail: llm.provider(s.settings) === "verda" ? `${llm.verdaConfig(s.settings).model} at ${llm.verdaConfig(s.settings).base_url || "?"}${llm.fallbackAllowed(s.settings) ? " · falls back to Claude" : " · strict EU-only"}` : `${s.settings.model} with web search, structured outputs` },
     ] });
   }));
   app.get("/api/companies", unlessLegacy((req, res) => {

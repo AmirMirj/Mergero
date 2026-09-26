@@ -109,7 +109,7 @@ export const ScoreSchema = z.object({
   attractiveness: z.number().int().min(0).max(100).describe("How attractive to the buyers in Mergero's network"),
   valuation_band_eur: z.object({ low: z.number(), high: z.number() }),
   meets_minimum: z.boolean().describe("Valuation high end >= EUR 3-5M floor"),
-  why_now: z.string().describe("One paragraph an advisor could say out loud to a colleague"),
+  why_now: z.string().describe("3-5 short sentences, each one point an advisor can scan. Separate with newlines. No long paragraph."),
   signals: z.array(z.object({
     signal: z.string(),
     direction: z.enum(["positive", "negative", "neutral"]),

@@ -38,7 +38,7 @@ fact("constants match the Python modules", () => {
   eq(E.SECTOR_MULTIPLES["Industrial construction"], 6); eq(E.DEFAULT_MULTIPLE, 7); eq(E.TIER_A, 80); eq(E.TIER_B, 60);
   eq(E.POTENTIAL_MANDATE_AT, 50); eq(E.FOLLOW_UP_DAYS["6-12 months"], 180); eq(E.LIKELIHOOD_BASE.needs_advisor, 55);
   eq(E.MANDATES.acquisition, ["Add-on acquisition programme", "buy"]); eq(E.NO_TRIGGER, ["Relationship build (no trigger yet)", "sell"]);
-  eq(E.QUESTIONS["Growth partner / minority stake"].length, 3); eq(E.WHY_MERGERO.buy.startsWith("The company is acquiring."), true);
+  eq(E.QUESTIONS["Growth partner / minority stake"].length, 3); eq(E.WHY_MERGERO.buy[0].startsWith("The company is acquiring."), true);
   eq(E.OWNER_ANGLE["Relationship build (no trigger yet)"], "We regularly share with owners what buyers in their sector are looking for, with no process in mind.");
   eq(E.ANGLE_DE.default, "Wir teilen regelmäßig mit Eigentümern, wonach Käufer in ihrer Branche suchen, ganz ohne Prozess.");
   eq(E.FIRST_TOUCH_BANNED instanceof RegExp, true); eq(E.FIRST_TOUCH_BANNED.global, false); eq(E.FIRST_TOUCH_BANNED.test("a Valuation"), true);
@@ -201,6 +201,21 @@ fact("scoreProspect: founder SaaS company with CapMan → 20 + 34 + 12 = 66, tie
   eq(euro.best_buyers[0].score, 90); eq(euro.fit, 32); eq(euro.explanation[1], "Fit 32/35: best buyer EuroCap scores 90/100"); eq(euro.score, 64);
 });
 
+fact("scoreProspect: every passed buyer is scored and kept", () => {
+  const rec = record();
+  const buyers = [
+    CAPMAN,
+    FI_BUYER,
+    { id: 8, buyer_name: "WasteCap", target_sector: "Circular economy / Waste logistics", min_ebitda_eur: 3000000, max_ebitda_eur: 12000000, geographic_focus: "Nordics" },
+    { id: 9, buyer_name: "EuroInd", target_sector: "Manufacturing & Industrial Automation", min_ebitda_eur: 2000000, max_ebitda_eur: 15000000, geographic_focus: "Europe" },
+  ];
+  const s = E.scoreProspect(rec, E.detectTriggers(rec, TODAY), buyers);
+  eq(s.best_buyers.length, buyers.length);
+  eq(s.match_stats.n, buyers.length);
+  eq(new Set(s.best_buyers.map((b) => b.buyer_id)).size, buyers.length);
+  eq(s.best_buyers[0].score, Math.max(...s.best_buyers.map((b) => b.score)));
+});
+
 fact("scoreProspect: several sell-side themes, a recent trigger and an owner-CEO max out urgency at 25", () => {
   const rec = record({}, [
     { signal_type: "growth", date: "2026-09-27", headline: "ARR up", source: "News" },
@@ -234,6 +249,7 @@ fact("buildHypothesis: succession mandate, headline, why-now lines, owner angle 
   eq(h.headline, "Succession sale for Nordic Cloud Oy: founder-generation succession likely");
   eq(h.why_now, ["Founder-generation succession likely: Founder-owned and founded in 1990 (36 years ago)"]);
   eq(h.why_mergero, E.WHY_MERGERO.sell);
+  eq(E.toPoints("First point. Second point follows. Third stays too."), ["First point", "Second point follows", "Third stays too"]);
   eq(h.owner_angle, "Owners who have built a company over 36 years often start thinking about the next chapter well before anything changes, and it helps to know early which options are open.");
   eq(h.suggested_buyers.length, 1); eq(h.questions_for_owner, ["Is there a family or management successor?", "What timeline does the owner have in mind?", "Full sale, or staying on for a transition period?"]);
   eq(h.ev_range, "€29-43M"); eq(h.source, "template");

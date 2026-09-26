@@ -663,7 +663,7 @@ export function scoreProspect(record, triggers, buyers) {
   );
 
   const ranked = buyers && buyers.length ? rankBuyers(buyers, toProfile(record)) : [];
-  const bestBuyers = ranked.slice(0, 3).map((b) => ({
+  const bestBuyers = ranked.map((b) => ({
     buyer_id: nn(b.buyer_id), buyer_name: nn(b.buyer_name), score: b.score,
     target_sector: nn(b.target_sector), geographic_focus: nn(b.geographic_focus),
     verdict: nn(b.verdict), summary: nn(b.summary), checks: nn(b.checks),
@@ -753,11 +753,25 @@ export const MANDATES = freeze({
 export const NO_TRIGGER = freeze(["Relationship build (no trigger yet)", "sell"]);
 
 export const WHY_MERGERO = freeze({
-  sell: "Mergero already holds active buyer mandates that fit this profile. The owner can learn, confidentially and "
-    + "at their own pace, what these buyers value, with softer options than a full sale (growth capital, a minority stake).",
-  buy: "The company is acquiring. Mergero can run a buy-side programme that screens off-market "
-    + "add-on targets across the Nordics and DACH against its criteria.",
+  sell: freeze([
+    "Active buyer mandates already fit this profile.",
+    "The owner can learn what those buyers value, confidentially and at their own pace.",
+    "Softer options than a full sale: growth capital or a minority stake.",
+  ]),
+  buy: freeze([
+    "The company is acquiring.",
+    "Mergero can run a buy-side programme for off-market add-ons.",
+    "Coverage across the Nordics and DACH, against its criteria.",
+  ]),
 });
+
+export function toPoints(text, { max = 5, min = 8 } = {}) {
+  if (Array.isArray(text)) return text.map((s) => String(s || "").trim()).filter(Boolean).slice(0, max);
+  const raw = String(text || "").replace(/^Mergero scoring agent:\s*/i, "").trim();
+  if (!raw) return [];
+  const parts = raw.split(/\n+|;\s+|(?<=[.!?])\s+(?=[A-ZÅÄÖÉ])/).map((s) => s.trim().replace(/^[-•*]\s+/, "").replace(/\.$/, "")).filter((s) => s.length >= min);
+  return (parts.length ? parts : [raw.replace(/\.$/, "")]).slice(0, max);
+}
 
 export const QUESTIONS = freeze({
   "Succession sale": freeze(["Is there a family or management successor?", "What timeline does the owner have in mind?",

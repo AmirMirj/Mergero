@@ -15,6 +15,8 @@
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .demo-focus { box-shadow: 0 0 0 2px rgb(52 211 153); border-radius: 1rem; }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white">
@@ -75,12 +77,12 @@
 
         <!-- ===================== DATA SOURCES ===================== -->
         <section id="dataPanel" class="hidden space-y-6">
-            <div class="glass-panel rounded-2xl p-5 space-y-4">
-                <div>
-                    <h2 class="text-base font-bold text-white">Data sources</h2>
-                    <p class="text-xs text-slate-400 mt-1">Everything the desk knows about a company comes from these sources. Each field is tagged with where it came from.</p>
+            <div class="glass-panel rounded-xl px-4 py-3 space-y-2">
+                <div class="flex items-baseline justify-between gap-3">
+                    <h2 class="text-sm font-semibold text-white tracking-tight">Data sources</h2>
+                    <p id="sourceMeta" class="text-[11px] text-slate-500"></p>
                 </div>
-                <div id="sourceCards" class="grid grid-cols-2 lg:grid-cols-5 gap-3"></div>
+                <div id="sourceCards" class="space-y-0.5"></div>
             </div>
 
             <div class="glass-panel rounded-2xl p-5 space-y-4">
@@ -124,7 +126,7 @@
                 <div class="flex-1 text-xs text-slate-300 space-y-1">
                     <div class="text-sm font-bold text-white">How it works</div>
                     <div><span class="text-emerald-300 font-semibold">1.</span> We rank every company by how likely it is to need an M&amp;A advisor right now. Hot ones are at the top.</div>
-                    <div><span class="text-emerald-300 font-semibold">2.</span> Each one is scored against the six buyer mandates (who they buy, where, and at what size). Charts show who fits and whether one buyer stands out.</div>
+                    <div><span class="text-emerald-300 font-semibold">2.</span> Each one is scored against every buyer mandate (who they buy, where, and at what size). Charts show who fits and whether one buyer stands out.</div>
                     <div><span class="text-emerald-300 font-semibold">3.</span> The <span class="text-white font-semibold">Today</span> list tells you the one next thing to do for each owner. Click the button.</div>
                     <div><span class="text-emerald-300 font-semibold">4.</span> Log the owner's reply and we qualify it. Interested owners get a first call with an advisor and, after a few meetings, sign an engagement letter: the mandate.</div>
                 </div>
@@ -134,15 +136,15 @@
                 </div>
             </div>
 
-            <div class="glass-panel rounded-2xl p-6 space-y-5">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div class="max-w-xl">
-                        <h2 class="text-base font-bold text-white">Mandate origination pipeline</h2>
-                        <p class="text-sm text-slate-400 mt-1 leading-relaxed">From company data to a qualified owner conversation. First call and mandate are simulated.</p>
+            <div class="glass-panel rounded-xl px-4 py-3 space-y-2.5">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 class="text-sm font-semibold text-white tracking-tight">Mandate pipeline</h2>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Data → owner conversation. First call and mandate are simulated.</p>
                     </div>
-                    <div class="relative">
-                        <button id="refreshBtn" onclick="toggleMenu('refreshMenu', event)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-1.5 rounded-lg text-xs cursor-pointer flex items-center gap-1">
-                            <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>Refresh data ▾</button>
+                    <div class="relative shrink-0">
+                        <button id="refreshBtn" onclick="toggleMenu('refreshMenu', event)" class="text-slate-400 hover:text-white hover:bg-white/[0.04] font-medium px-2 py-1 rounded-md text-[11px] cursor-pointer flex items-center gap-1">
+                            <i data-lucide="refresh-cw" class="h-3 w-3"></i>Refresh</button>
                         <div id="refreshMenu" class="menu hidden absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1 z-40">
                             <button onclick="runIngest(false)" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer">
                                 <div class="text-sm text-white font-semibold">Quick refresh</div>
@@ -153,8 +155,8 @@
                         </div>
                     </div>
                 </div>
-                <div id="mvpStepper" class="space-y-5"></div>
-                <div id="ingestStats" class="text-xs text-slate-500">Using a quick read of the datasets.</div>
+                <div id="mvpStepper"></div>
+                <div id="ingestStats" class="text-[10px] text-slate-600">Using a quick read of the datasets.</div>
             </div>
             <div id="bookMatchStats"></div>
 
@@ -284,6 +286,19 @@
     <aside id="drawer" class="drawer fixed top-0 right-0 h-full w-full max-w-xl bg-slate-900 border-l border-slate-800 z-50 translate-x-full overflow-y-auto">
         <div id="drawerContent" class="p-6 space-y-6"></div>
     </aside>
+    <div id="mailOverlay" class="hidden fixed inset-0 z-[60] bg-slate-950/70 flex items-start justify-center p-4 sm:p-8" onclick="if (event.target === this) closeMailView()">
+        <div class="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 shadow-2xl">
+            <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-800">
+                <div class="min-w-0">
+                    <div id="mailKind" class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Email</div>
+                    <h3 id="mailSubject" class="text-sm font-semibold text-white mt-0.5"></h3>
+                    <div id="mailMeta" class="text-[11px] text-slate-500 mt-1"></div>
+                </div>
+                <button onclick="closeMailView()" class="text-slate-400 hover:text-white cursor-pointer shrink-0"><i data-lucide="x" class="h-4 w-4"></i></button>
+            </div>
+            <div id="mailBody" class="px-5 py-4 text-[13px] text-slate-200 leading-relaxed whitespace-pre-wrap"></div>
+        </div>
+    </div>
 
     <!-- Manual add -->
     <div id="addModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
@@ -369,6 +384,35 @@
                 `<span class="h-1.5 w-5 rounded-full ${n <= i ? "bg-emerald-400" : "bg-slate-700"}"></span>`).join("")}</div>`;
         }
         function icons() { lucide.createIcons(); }
+        const CHIP_TONE = {
+            slate: "bg-slate-800 text-slate-300",
+            sky: "bg-sky-500/15 text-sky-300",
+            emerald: "bg-emerald-500/15 text-emerald-300",
+            amber: "bg-amber-400/15 text-amber-200",
+            rose: "bg-rose-500/15 text-rose-200",
+            violet: "bg-violet-500/15 text-violet-200",
+            teal: "bg-teal-500/15 text-teal-200",
+        };
+        const TRIGGER_CHIP = {
+            succession: ["Succession", "rose"],
+            derived_succession: ["Succession", "rose"],
+            ownership_change: ["Ownership", "violet"],
+            management_change: ["Management", "sky"],
+            acquisition: ["Acquisition", "teal"],
+            growth: ["Growth", "emerald"],
+            growth_capital: ["Growth", "emerald"],
+            capital_need: ["Capital", "amber"],
+            pe_exit: ["PE exit", "violet"],
+        };
+        function chip(label, tone, muted) {
+            if (!label) return "";
+            return `<span class="px-1.5 py-px rounded text-[10px] ${muted ? "bg-slate-800/60 text-slate-500" : (CHIP_TONE[tone] || CHIP_TONE.slate)}">${esc(label)}</span>`;
+        }
+        function prospectChips(p) {
+            const t = p.top_trigger;
+            const [sig, sigTone] = t ? (TRIGGER_CHIP[t.type] || [t.label, "slate"]) : ["no trigger", "slate"];
+            return `<span class="flex flex-wrap gap-1 min-w-0">${chip(sig, sigTone)}${chip(p.country_name, "sky")}${chip(p.side === "buy" ? "buy" : "sell", p.side === "buy" ? "teal" : "violet")}</span>`;
+        }
 
         // ---------- tabs ----------
         function setTab(tab) {
@@ -386,6 +430,7 @@
             if (tab === "sell") loadOwners();
             if (tab === "data") loadDataSources();
             if (tab === "prospects") loadProspectsTab();
+            if (tab === "buy") loadDeals();
         }
 
         function closeMenus() { document.querySelectorAll(".menu").forEach((m) => m.classList.add("hidden")); }
@@ -445,55 +490,34 @@
         async function loadStepper() {
             try {
                 const s = (await api("/api/pipeline-summary")).data;
-                const chip = (cls, text) => `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${cls}">${text}</span>`;
                 const steps = [
-                    { n: 1, title: "Data", value: s.data.companies, hint: "companies in the book", extra: `${s.data.signals} signals loaded`, go: "setTab('data')" },
-                    { n: 2, title: "Signals", value: s.signals.with_triggers, hint: "have an M&A trigger", extra: "events that make an owner worth calling", go: "focusProspects('', '')" },
-                    { n: 3, title: "Scoring", value: s.scoring.A + s.scoring.B + s.scoring.C, hint: "companies ranked", extra: `${chip("bg-emerald-500 text-slate-950", `${s.scoring.A} hot`)} ${chip("bg-amber-400 text-slate-950", `${s.scoring.B} warm`)} ${chip("bg-slate-700 text-slate-200", `${s.scoring.C} watch`)}`, go: "focusProspects('A', '')" },
-                    { n: 4, title: "Hypothesis", value: s.hypothesis.sell + s.hypothesis.buy, hint: "AI angles drafted", extra: `${s.hypothesis.sell} sell-side · ${s.hypothesis.buy} buy-side`, go: "focusProspects('', 'sell')" },
-                    { n: 5, title: "Outreach", value: s.outreach.sequences, hint: "sequences started", extra: `${s.outreach.sent} messages sent`, go: "focusProspects('', '')", waiting: !s.outreach.sequences },
-                    { n: 6, title: "Qualified", value: s.qualification.qualified, hint: "owners ready to talk", extra: `${s.qualification.potential_mandates} potential mandates`, go: "focusProspects('', '')", waiting: !s.qualification.qualified },
+                    { n: 1, title: "Data", value: s.data.companies, hint: "in book", extra: `${s.data.signals} signals`, go: "setTab('data')" },
+                    { n: 2, title: "Signals", value: s.signals.with_triggers, hint: "with trigger", extra: "worth a call", go: "focusProspects('', '')" },
+                    { n: 3, title: "Scoring", value: s.scoring.A + s.scoring.B + s.scoring.C, hint: "ranked", extra: `<span class="text-emerald-400">${s.scoring.A}</span> <span class="text-amber-400">${s.scoring.B}</span> <span class="text-slate-500">${s.scoring.C}</span>`, go: "focusProspects('A', '')" },
+                    { n: 4, title: "Hypothesis", value: s.hypothesis.sell + s.hypothesis.buy, hint: "angles", extra: `${s.hypothesis.sell} sell · ${s.hypothesis.buy} buy`, go: "focusProspects('', 'sell')" },
+                    { n: 5, title: "Outreach", value: s.outreach.sequences, hint: "sequences", extra: `${s.outreach.sent} sent`, go: "focusProspects('', '')", waiting: !s.outreach.sequences },
+                    { n: 6, title: "Qualified", value: s.qualification.qualified, hint: "ready", extra: `${s.qualification.potential_mandates} mandates`, go: "focusProspects('', '')", waiting: !s.qualification.qualified },
                 ];
                 const done = (st) => Number(st.value) > 0;
-                const card = (st) => `
-                    <button onclick="${st.go}" class="text-left bg-slate-800/40 hover:bg-slate-800 rounded-2xl px-4 py-4 border ${done(st) ? "border-emerald-500/35" : "border-slate-800"} cursor-pointer">
-                        <div class="flex items-center gap-2">
-                            <span class="h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-bold ${done(st) ? "bg-emerald-500 text-slate-950" : "bg-slate-700 text-slate-300"}">${st.n}</span>
-                            <span class="text-xs font-semibold text-slate-200">${st.title}</span>
-                        </div>
-                        <div class="text-2xl font-extrabold ${st.waiting ? "text-slate-500" : "text-white"} mt-3">${st.value}</div>
-                        <div class="text-[13px] text-slate-400 mt-1">${st.hint}</div>
-                        <div class="text-xs text-slate-500 mt-3 leading-relaxed">${st.extra}</div>
+                const mandateDone = s.handoff.mandates || s.handoff.handed_off;
+                const complete = steps.filter(done).length + (mandateDone ? 1 : 0);
+                const cell = (inner, go) => `
+                    <button onclick="${go}" class="min-w-[6.25rem] flex-1 text-left px-2.5 py-1.5 rounded-md hover:bg-white/[0.04] cursor-pointer">
+                        ${inner}
                     </button>`;
-                const ready = steps.slice(0, 4).map(card).join("");
-                const next = steps.slice(4).map(card).join("") + `
-                    <div class="rounded-2xl px-4 py-4 border border-dashed ${s.handoff.mandates ? "border-emerald-500/40" : "border-slate-600"}">
-                        <div class="flex items-center gap-2">
-                            <span class="h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-bold ${s.handoff.mandates || s.handoff.handed_off ? "bg-emerald-500 text-slate-950" : "bg-slate-700 text-slate-300"}">7</span>
-                            <span class="text-xs font-semibold text-slate-200">First call → mandate</span>
-                        </div>
-                        <div class="flex items-end gap-4 mt-3">
-                            <div>
-                                <div class="text-2xl font-extrabold ${s.handoff.handed_off ? "text-white" : "text-slate-500"}">${s.handoff.handed_off}</div>
-                                <div class="text-[13px] text-slate-400">calls booked</div>
-                            </div>
-                            <div class="text-slate-600 pb-5">→</div>
-                            <div>
-                                <div class="text-2xl font-extrabold ${s.handoff.mandates ? "text-emerald-400" : "text-slate-500"}">${s.handoff.mandates}</div>
-                                <div class="text-[13px] text-slate-400">letters signed</div>
-                            </div>
-                        </div>
-                        <div class="text-xs text-slate-500 mt-3">Simulated in this prototype</div>
-                    </div>`;
+                const card = (st) => cell(`
+                    <div class="text-[11px] ${done(st) ? "text-emerald-400" : "text-slate-400"}">${st.title}</div>
+                    <div class="text-xl font-semibold tabular-nums tracking-tight leading-none ${st.waiting ? "text-slate-600" : "text-white"} mt-1">${st.value}</div>
+                    <div class="text-[10px] text-slate-500 mt-1">${st.hint}${st.extra ? ` · ${st.extra}` : ""}</div>`, st.go);
+                const last = cell(`
+                    <div class="text-[11px] ${mandateDone ? "text-emerald-400" : "text-slate-400"}">Mandate</div>
+                    <div class="text-xl font-semibold tabular-nums tracking-tight leading-none mt-1 ${s.handoff.handed_off || s.handoff.mandates ? "text-white" : "text-slate-600"}">${s.handoff.handed_off}<span class="text-slate-600 font-medium"> → </span><span class="${s.handoff.mandates ? "text-emerald-400" : ""}">${s.handoff.mandates}</span></div>
+                    <div class="text-[10px] text-slate-500 mt-1">calls → letters</div>`, "focusProspects('', '')");
                 document.getElementById("mvpStepper").innerHTML = `
-                    <div>
-                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Engine has prepared</div>
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">${ready}</div>
+                    <div class="h-px bg-slate-800/90 rounded-full overflow-hidden">
+                        <div class="h-px bg-emerald-400/80" style="width:${Math.round((complete / 7) * 100)}%"></div>
                     </div>
-                    <div>
-                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Still to convert</div>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">${next}</div>
-                    </div>`;
+                    <div class="flex overflow-x-auto divide-x divide-slate-800/70">${steps.map(card).join("")}${last}</div>`;
                 return s;
             } catch (e) { return null; }
         }
@@ -530,8 +554,8 @@
             if (!el) return;
             const tops = prospects.map((p) => p.top_buyer).filter((b) => b && b.score != null);
             el.innerHTML = matchStatsPanel(tops, {
-                title: "Best-buyer fit across the book",
-                subtitle: "Each company scored against the six mandates. This chart is the winner only — the best of six. That is why the left side looks empty.",
+                title: "Buyer fit",
+                subtitle: `Each company is scored against all ${buyers.length} mandates. The count is how often that fund is the best match.`,
                 book: true,
             });
         }
@@ -551,8 +575,8 @@
                         <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1"><div class="h-full ${p.tier === "A" ? "bg-emerald-500" : p.tier === "B" ? "bg-amber-400" : "bg-slate-500"}" style="width:${p.score}%"></div></div>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <div class="text-sm font-semibold text-white truncate">${esc(p.company_name)} <span class="text-slate-500 font-normal text-xs">${esc(p.country_name)}</span></div>
-                        <div class="text-[11px] text-slate-500 truncate">${esc(p.mandate_type)} · ${esc(p.sector)}</div>
+                        <div class="text-sm font-semibold text-white truncate">${esc(p.company_name)}</div>
+                        <div class="mt-1">${prospectChips(p)}</div>
                     </div>
                     <div class="hidden lg:block w-52 shrink-0 text-[11px] text-slate-300 truncate">${t ? `${esc(t.label)}${t.date ? ` <span class="text-slate-500">${esc(t.date.slice(0, 7))}</span>` : ""}` : `<span class="text-slate-600">no trigger yet</span>`}${p.top_buyer ? `<div class="text-slate-500 truncate">${esc(p.top_buyer.buyer_name)}${p.top_buyer.verdict ? ` · ${p.top_buyer.verdict} fit` : ""}</div>` : ""}</div>
                     ${p.mandate_likelihood != null ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${p.mandate_likelihood >= 50 ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"}" title="Mandate likelihood · timing: ${esc(p.timing)}">${p.mandate_likelihood}%</span>` : ""}
@@ -654,6 +678,45 @@
             const open = drawerStep ?? prospectDetail.next_action.step;
             drawerStep = open === n ? -1 : n;
             renderProspectDrawer();
+        }
+        function openMailView({ kind = "Email", subject = "", meta = "", body = "" }) {
+            document.getElementById("mailKind").textContent = kind;
+            document.getElementById("mailSubject").textContent = subject || "Untitled";
+            document.getElementById("mailMeta").textContent = meta;
+            document.getElementById("mailBody").textContent = body || "";
+            document.getElementById("mailOverlay").classList.remove("hidden");
+            icons();
+        }
+        function closeMailView() {
+            document.getElementById("mailOverlay").classList.add("hidden");
+        }
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && !document.getElementById("mailOverlay").classList.contains("hidden")) {
+                e.stopPropagation();
+                closeMailView();
+            }
+        });
+        function viewSequenceMail(step) {
+            const camp = prospectDetail?.campaign;
+            const st = (camp?.sequence || []).find((x) => x.step === step);
+            if (!st) return;
+            openMailView({
+                kind: st.channel || "Email",
+                subject: st.subject || `Day ${st.day} message`,
+                meta: [`Day ${st.day}`, st.channel, st.status, camp.contact_name ? `to ${camp.contact_name}` : ""].filter(Boolean).join(" · "),
+                body: st.body || "",
+            });
+        }
+        function viewThreadMail(i) {
+            const m = prospectDetail?.conversation?.thread?.[i];
+            if (!m) return;
+            const incoming = m.direction !== "out";
+            openMailView({
+                kind: incoming ? "Owner reply" : (m.channel || "Email"),
+                subject: incoming ? (m.qualification?.label || "Owner reply") : (m.subject || "Sent message"),
+                meta: [incoming ? "Inbound" : "Sent", m.channel, m.qualification?.label, m.at ? String(m.at).slice(0, 10) : ""].filter(Boolean).join(" · "),
+                body: m.text || "",
+            });
         }
 
         function buyerParts(buyer) {
@@ -799,82 +862,51 @@
                 </div>
             </div>`;
         }
+        function mandateChips(b, muted) {
+            const tags = [...(b.target_sector || "").split(" / ").slice(0, 2), (b.geographic_focus || "").split(" · ")[0], band(b)].filter(Boolean);
+            const on = ["bg-slate-800 text-slate-300", "bg-slate-800 text-slate-300", "bg-slate-800 text-sky-300", "bg-slate-800 text-amber-200"];
+            const off = "bg-slate-800/60 text-slate-500";
+            return tags.map((t, i) => `<span class="px-1.5 py-px rounded text-[10px] ${muted ? off : on[i % on.length]}">${esc(t)}</span>`).join("");
+        }
+        function mandateRow(b, wins) {
+            const w = wins[b.id] || 0;
+            return `<div class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg ${w ? "bg-slate-900/70" : ""}">
+                <span class="h-1.5 w-1.5 rounded-full shrink-0 ${w ? "bg-emerald-400" : "bg-slate-600"}"></span>
+                <div class="flex-1 min-w-0 flex items-center gap-2">
+                    <span class="text-[13px] ${w ? "text-white" : "text-slate-500"} truncate">${esc(b.buyer_name)}</span>
+                    <span class="hidden sm:flex flex-wrap gap-1 min-w-0">${mandateChips(b, !w)}</span>
+                </div>
+                <span class="shrink-0 text-xs tabular-nums ${w ? "text-emerald-400" : "text-slate-600"}">${w || "—"}</span>
+            </div>`;
+        }
         function mandateBookStrip() {
             if (!buyers.length) return "";
             const wins = {};
             for (const p of prospects) {
-                const name = p.top_buyer?.buyer_name;
-                if (name) wins[name] = (wins[name] || 0) + 1;
+                const id = p.top_buyer?.buyer_id;
+                if (id != null) wins[id] = (wins[id] || 0) + 1;
             }
-            return `<div>
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">The six buy-side mandates</div>
-                <p class="text-xs text-slate-400 mb-3 leading-relaxed">Six funds with an active search: sector, region and EBITDA band. Every company is scored against all six.</p>
-                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
-                    ${buyers.map((b) => `
-                        <div class="rounded-xl bg-slate-900/60 border border-slate-800 px-3 py-2.5">
-                            <div class="text-sm font-semibold text-white leading-snug">${esc(b.buyer_name)}</div>
-                            <div class="text-[11px] text-slate-300 mt-1 leading-snug">Looking for ${esc(b.target_sector)}</div>
-                            <div class="text-[11px] text-slate-500 mt-1">${esc(b.geographic_focus)} · ${band(b)} EBITDA</div>
-                            <div class="text-[11px] mt-1.5 ${wins[b.buyer_name] ? "text-emerald-300" : "text-slate-600"}">${wins[b.buyer_name] ? `best for ${wins[b.buyer_name]} compan${wins[b.buyer_name] === 1 ? "y" : "ies"}` : "not a top pick yet"}</div>
-                        </div>`).join("")}
-                </div>
+            const rows = [...buyers].sort((a, b) => (wins[b.id] || 0) - (wins[a.id] || 0) || a.buyer_name.localeCompare(b.buyer_name));
+            const hit = rows.filter((b) => wins[b.id]);
+            const rest = rows.filter((b) => !wins[b.id]);
+            return `<div class="space-y-1">
+                ${hit.map((b) => mandateRow(b, wins)).join("")}
+                ${rest.length ? `<details class="rounded-lg">
+                    <summary class="px-3 py-1.5 text-[12px] text-slate-400 hover:text-slate-200 cursor-pointer list-none flex items-center justify-between">
+                        ${rest.length} unmatched
+                        <span class="text-slate-600">▾</span>
+                    </summary>
+                    <div class="space-y-0.5">${rest.map((b) => mandateRow(b, wins)).join("")}</div>
+                </details>` : ""}
             </div>`;
         }
-        function bookFitPanel(s, scores) {
-            const pct = (n) => s.n ? Math.round(100 * n / s.n) : 0;
-            const bandCard = (count, label, range, cls, bar) => `
-                <div class="rounded-xl bg-slate-900/70 border border-slate-800 px-3 py-3">
-                    <div class="flex items-baseline justify-between gap-2">
-                        <div class="text-2xl font-extrabold text-white">${count}</div>
-                        <div class="text-[11px] text-slate-500">${pct(count)}%</div>
-                    </div>
-                    <div class="text-xs font-semibold ${cls} mt-1">${label}</div>
-                    <div class="text-[11px] text-slate-500">${range}</div>
-                    <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden mt-2"><div class="${bar} h-full" style="width:${pct(count)}%"></div></div>
-                </div>`;
-            const spreadHint = s.stdev < 8 ? "Almost every company has a similar-quality best buyer."
-                : s.stdev < 14 ? "Most companies cluster around the same quality of match."
-                : "Best-fit quality varies a lot across the book.";
-            return `<div class="glass-panel rounded-2xl p-6 space-y-5">
-                <div>
-                    <h2 class="text-base font-bold text-white">Best-buyer fit across the book</h2>
-                    <p class="text-sm text-slate-400 mt-1 leading-relaxed">Who Mergero can call on, and how well the book matches them. The chart is each company's strongest buyer only — so almost nobody lands below 55.</p>
+        function bookFitPanel(s) {
+            return `<div class="glass-panel rounded-xl px-4 py-3 space-y-2">
+                <div class="flex items-baseline justify-between gap-3">
+                    <h2 class="text-sm font-semibold text-white tracking-tight">Buyer fit</h2>
+                    <p class="text-[11px] text-slate-500">${buyers.length} mandates · ${s.strong}/${s.n} strong</p>
                 </div>
                 ${mandateBookStrip()}
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                    <div class="lg:col-span-5 space-y-4">
-                        <p class="text-sm text-slate-200 leading-relaxed">
-                            <span class="text-3xl font-extrabold text-emerald-400 align-middle">${s.strong}</span>
-                            <span class="text-slate-300"> of ${s.n} companies already have a strong buyer (75+).</span>
-                        </p>
-                        <div class="grid grid-cols-3 gap-2">
-                            ${bandCard(s.strong, "Strong", "score 75+", "text-emerald-300", "bg-emerald-400")}
-                            ${bandCard(s.possible, "Possible", "score 55–74", "text-amber-200", "bg-amber-400")}
-                            ${bandCard(s.weak, "Weak", "score below 55", "text-slate-300", "bg-slate-500")}
-                        </div>
-                        <div class="grid grid-cols-3 gap-2">
-                            <div class="rounded-xl bg-slate-900/50 px-3 py-2.5">
-                                <div class="text-[10px] uppercase tracking-wide text-slate-500">Typical</div>
-                                <div class="text-xl font-extrabold text-white">${s.median.toFixed(0)}</div>
-                                <div class="text-[11px] text-slate-500">median best-fit</div>
-                            </div>
-                            <div class="rounded-xl bg-slate-900/50 px-3 py-2.5">
-                                <div class="text-[10px] uppercase tracking-wide text-slate-500">Best</div>
-                                <div class="text-xl font-extrabold text-white">${s.best}</div>
-                                <div class="text-[11px] text-slate-500">highest match</div>
-                            </div>
-                            <div class="rounded-xl bg-slate-900/50 px-3 py-2.5">
-                                <div class="text-[10px] uppercase tracking-wide text-slate-500">Spread</div>
-                                <div class="text-xl font-extrabold text-white">±${s.stdev.toFixed(0)}</div>
-                                <div class="text-[11px] text-slate-500">${s.stdev < 12 ? "tight cluster" : "wider mix"}</div>
-                            </div>
-                        </div>
-                        <p class="text-xs text-slate-400 leading-relaxed">${spreadHint} Typical best-fit is ${s.median.toFixed(0)}; average is ${s.mean.toFixed(0)}.</p>
-                    </div>
-                    <div class="lg:col-span-7 rounded-xl bg-slate-900/40 border border-slate-800/80 px-4 py-3">
-                        ${scoreHistogram(scores, { book: true, median: s.median })}
-                    </div>
-                </div>
             </div>`;
         }
         function axisValue(buyer, key) {
@@ -935,31 +967,44 @@
                 return `<span title="${esc(c.detail || c.label)}" class="text-[10px] font-bold px-1.5 py-0.5 rounded ${tone[c.ok] || tone.unknown}">${mark[c.ok] || "?"} ${name[k]}</span>`;
             }).join("")}</div>`;
         }
+        function scoredMandateRow(b, i) {
+            const tone = b.verdict === "strong" ? "text-emerald-300" : b.verdict === "possible" ? "text-amber-200" : "text-slate-500";
+            return `<div class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg ${i === 0 ? "bg-slate-900/70" : ""}">
+                <span class="h-1.5 w-1.5 rounded-full shrink-0 ${b.score >= 75 ? "bg-emerald-400" : b.score >= 55 ? "bg-amber-400" : "bg-slate-600"}"></span>
+                <div class="flex-1 min-w-0 flex items-center gap-2">
+                    <span class="text-[13px] ${i === 0 ? "text-white" : "text-slate-400"} truncate">${i === 0 ? "Best: " : ""}${esc(b.buyer_name)}</span>
+                    <span class="hidden sm:flex flex-wrap gap-1 min-w-0">${mandateChips(b, b.score < 55)}</span>
+                </div>
+                <span class="shrink-0 text-[10px] font-bold tabular-nums ${tone}">${esc(b.verdict || "")} · ${b.score}</span>
+            </div>`;
+        }
         function buyerCards(buyers) {
             if (!buyers?.length) return `<div class="text-slate-400">No buyer in the book is a clear fit yet.</div>`;
+            const ranked = [...buyers].sort((a, b) => b.score - a.score);
+            const top = ranked[0];
             return `<div class="space-y-3">
-                ${matchStatsPanel(buyers, { title: "How the book compares" })}
+                ${matchStatsPanel(ranked, { title: `How the book compares · ${ranked.length} mandates` })}
                 <div class="pt-1">
-                    <div class="text-[11px] text-slate-400 mb-1.5">Green is a strong fit (75+). Amber is possible. Grey is weak.</div>
-                    ${matchBarChart(buyers)}
+                    <div class="text-[11px] text-slate-400 mb-1.5">Scored against every mandate. Green is a strong fit (75+). Amber is possible. Grey is weak.</div>
+                    ${matchBarChart(ranked)}
                 </div>
-                ${(buyers || []).map((b, i) => `
+                <div class="space-y-0.5">${ranked.map((b, i) => scoredMandateRow(b, i)).join("")}</div>
                 <div class="bg-slate-900/50 rounded-lg px-3 py-2">
                     <div class="flex gap-3">
-                        ${radarSvg(b)}
+                        ${radarSvg(top)}
                         <div class="min-w-0 flex-1 space-y-1">
                             <div class="flex items-center justify-between gap-2">
-                                <div class="text-slate-200 font-semibold truncate">${i === 0 ? "Best: " : ""}${esc(b.buyer_name)}</div>
-                                <span class="text-[10px] font-bold ${b.verdict === "strong" ? "text-emerald-300" : b.verdict === "possible" ? "text-amber-200" : "text-slate-400"}">${esc(b.verdict || "")} · ${b.score}</span>
+                                <div class="text-slate-200 font-semibold truncate">Best: ${esc(top.buyer_name)}</div>
+                                <span class="text-[10px] font-bold ${top.verdict === "strong" ? "text-emerald-300" : top.verdict === "possible" ? "text-amber-200" : "text-slate-400"}">${esc(top.verdict || "")} · ${top.score}</span>
                             </div>
-                            <div class="text-[11px] text-slate-400">${esc(b.summary || b.target_sector || "")}</div>
-                            ${checkDots(b.checks)}
-                            ${checkBars(b)}
-                            ${stackedParts(b)}
-                            ${ebitdaStrip(b)}
+                            <div class="text-[11px] text-slate-400">${esc(top.summary || top.target_sector || "")}</div>
+                            ${checkDots(top.checks)}
+                            ${checkBars(top)}
+                            ${stackedParts(top)}
+                            ${ebitdaStrip(top)}
                         </div>
                     </div>
-                </div>`).join("")}
+                </div>
             </div>`;
         }
         function bar(label, value, max, color) {
@@ -991,25 +1036,40 @@
                 </li>`).join("") || `<li class="text-xs text-slate-500">No triggers yet. Refresh with the live registry, or check the company on the Data tab.</li>`;
 
             const message = (st) => {
-                if (nextDraft && st.step === nextDraft.step) return `
+                const tone = st.status === "sent" ? "text-emerald-400" : st.status === "cancelled" ? "text-rose-300" : "text-slate-500";
+                const isNext = nextDraft && st.step === nextDraft.step;
+                if (isNext) return `
                     <div class="bg-slate-800/40 rounded-xl p-3 space-y-2 border border-emerald-500/30">
-                        <div class="text-xs"><span class="font-semibold text-white">Day ${st.day} · next message</span> <span class="text-slate-500">· ${esc(st.channel)} · ${esc(st.subject)}</span></div>
-                        <textarea rows="${st.step === 0 ? 8 : 4}" onchange="editStep(${d.company_id}, ${st.step}, this.value)"
+                        <button type="button" onclick="viewSequenceMail(${st.step})" class="w-full text-left cursor-pointer group">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="text-xs min-w-0"><span class="font-semibold text-white">Day ${st.day} · next message</span> <span class="text-slate-500">· ${esc(st.channel)} · ${esc(st.subject)}</span></div>
+                                <span class="text-[10px] text-slate-400 group-hover:text-white shrink-0">View full</span>
+                            </div>
+                        </button>
+                        <textarea rows="${Math.min(16, Math.max(6, String(st.body || "").split("\n").length + 1))}" onchange="editStep(${d.company_id}, ${st.step}, this.value)"
                             class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-[11px] text-slate-200 leading-relaxed focus:outline-none focus:border-emerald-500">${esc(st.body)}</textarea>
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-[10px] text-slate-500">Edit the text if you like. Changes are saved automatically.</span>
                             ${a.key === "send" ? "" : `<button onclick="sendStep(${d.company_id}, ${st.step})" class="text-[11px] font-bold bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-1 rounded-lg cursor-pointer whitespace-nowrap">Send now (simulated)</button>`}
                         </div>
                     </div>`;
-                const tone = st.status === "sent" ? "text-emerald-400" : st.status === "cancelled" ? "text-rose-300" : "text-slate-500";
-                return `<details class="bg-slate-800/30 rounded-lg px-3 py-2">
-                    <summary class="cursor-pointer text-[11px] text-slate-300 flex justify-between gap-2"><span class="truncate">Day ${st.day} · ${esc(st.subject)}</span><span class="${tone} font-semibold shrink-0">${st.status === "sent" ? "sent ✓" : esc(st.status)}</span></summary>
-                    <div class="text-[11px] text-slate-400 whitespace-pre-line mt-2">${esc(st.body)}</div></details>`;
+                return `<button type="button" onclick="viewSequenceMail(${st.step})" class="w-full bg-slate-800/30 hover:bg-slate-800/50 rounded-lg px-3 py-2 text-left cursor-pointer">
+                    <div class="flex justify-between gap-2">
+                        <span class="truncate text-[11px] text-slate-300">Day ${st.day} · ${esc(st.subject)}</span>
+                        <span class="${tone} font-semibold shrink-0 text-[11px]">${st.status === "sent" ? "sent ✓" : esc(st.status)}</span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 truncate mt-0.5">${esc((st.body || "").replace(/\s+/g, " ").trim())}</div>
+                    <div class="text-[10px] text-slate-500 mt-1">View full</div>
+                </button>`;
             };
 
-            const thread = conv.thread.map((m) => m.direction === "out"
-                ? `<div class="ml-8 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2"><div class="text-[10px] text-emerald-300">Sent · ${esc(m.channel || "")}</div><div class="text-[11px] text-slate-300 whitespace-pre-line line-clamp-3">${esc(m.text || "")}</div></div>`
-                : `<div class="mr-8 bg-slate-800/60 rounded-xl p-2"><div class="text-[10px] ${CATEGORY_TONE[m.qualification.category] || "text-slate-400"}">Owner reply · ${esc(m.qualification.label)}</div><div class="text-[11px] text-slate-200">${esc(m.text)}</div></div>`
+            const thread = conv.thread.map((m, i) => m.direction === "out"
+                ? `<button type="button" onclick="viewThreadMail(${i})" class="w-full text-left ml-8 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 rounded-xl p-2 cursor-pointer">
+                    <div class="flex items-center justify-between gap-2"><div class="text-[10px] text-emerald-300">Sent · ${esc(m.channel || "")}</div><span class="text-[10px] text-slate-500">View full</span></div>
+                    <div class="text-[11px] text-slate-300 whitespace-pre-line line-clamp-3">${esc(m.text || "")}</div></button>`
+                : `<button type="button" onclick="viewThreadMail(${i})" class="w-full text-left mr-8 bg-slate-800/60 hover:bg-slate-800 rounded-xl p-2 cursor-pointer">
+                    <div class="flex items-center justify-between gap-2"><div class="text-[10px] ${CATEGORY_TONE[m.qualification?.category] || "text-slate-400"}">Owner reply · ${esc(m.qualification?.label || "")}</div><span class="text-[10px] text-slate-500">View full</span></div>
+                    <div class="text-[11px] text-slate-200 whitespace-pre-line line-clamp-3">${esc(m.text || "")}</div></button>`
             ).join("");
 
             const qualCard = q ? `<div class="bg-slate-800/60 rounded-xl p-3 space-y-2">
@@ -1058,23 +1118,41 @@
                   summary: top ? `${d.triggers.length} trigger${d.triggers.length > 1 ? "s" : ""} · ${top.label}` : "No trigger yet",
                   body: `<ul class="space-y-2">${triggers}</ul>` },
                 { n: 3, title: "Scoring", done: true,
-                  help: "How likely they need an advisor now: timing (up to 40), fit with our buyers (35) and urgency (25).",
-                  summary: `${TIER_LABEL[s.tier]} · ${s.score}/100`,
+                  help: "How likely they need an advisor now: timing (up to 40), fit with our buyers (35) and urgency (25). Fit is scored against every live mandate.",
+                  summary: `${TIER_LABEL[s.tier]} · ${s.score}/100 · ${(s.best_buyers || []).length} mandates`,
                   body: `<div class="grid grid-cols-3 gap-3">${bar("Timing", s.timing, 40, "bg-rose-400")}${bar("Fit", s.fit, 35, "bg-sky-400")}${bar("Urgency", s.urgency, 25, "bg-amber-400")}</div>
-                         ${(s.best_buyers || []).length ? `<div class="mt-2 space-y-2">${matchStatsPanel((s.match_stats?.scores || s.best_buyers.map((b) => b.score)).map((score) => ({ score })), { title: "Buyer-fit statistics" })}${matchBarChart(s.best_buyers)}</div>` : ""}
+                         ${(s.best_buyers || []).length ? `<div class="mt-2 space-y-2">${matchStatsPanel((s.match_stats?.scores || s.best_buyers.map((b) => b.score)).map((score) => ({ score })), { title: `Buyer-fit statistics · ${(s.best_buyers || []).length} mandates` })}${matchBarChart(s.best_buyers)}</div>` : ""}
                          <ul class="space-y-0.5 text-[11px] text-slate-400">${s.explanation.map((e) => `<li>· ${esc(e)}</li>`).join("")}</ul>` },
                 { n: 4, title: "AI Hypothesis", done: true,
                   help: "Why we would contact this owner, and what we could offer them.",
                   summary: h.mandate_type,
-                  body: `<div class="bg-slate-800/50 rounded-xl p-3 space-y-2 text-xs">
+                  body: `<div class="space-y-2.5 text-xs">
                         <div class="flex items-center gap-2"><span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${h.side === "buy" ? "bg-teal-500/20 text-teal-200" : "bg-violet-500/20 text-violet-200"}">${h.side}-side</span>
                             <span class="text-white font-semibold">${esc(h.mandate_type)}</span></div>
-                        <div><div class="text-slate-500 text-[10px] uppercase">Why now</div><ul class="text-slate-300">${h.why_now.map((w) => `<li>· ${esc(w)}</li>`).join("") || "<li>· No trigger yet</li>"}</ul></div>
-                        <div><div class="text-slate-500 text-[10px] uppercase">Why Mergero</div><div class="text-slate-300">${esc(h.why_mergero)}</div></div>
-                        <div><div class="text-slate-500 text-[10px] uppercase">EV range</div><div class="text-slate-300">${esc(h.ev_range)}</div></div>
-                        <div><div class="text-slate-500 text-[10px] uppercase">Who would buy this</div>
-                            ${h.suggested_buyers.length ? buyerCards(h.suggested_buyers) : `<div class="text-slate-400">No buyer in the book is a clear fit yet.</div>`}</div>
-                        <div><div class="text-slate-500 text-[10px] uppercase">Ask the owner</div><ul class="text-slate-300">${h.questions_for_owner.map((x) => `<li>· ${esc(x)}</li>`).join("")}</ul></div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wide text-slate-500 mb-1">Why now</div>
+                            <ul class="space-y-1 text-slate-300">${(h.why_now || []).map((w) => `<li class="flex gap-2"><span class="text-slate-600">·</span><span>${esc(w)}</span></li>`).join("") || `<li class="text-slate-500">No trigger yet</li>`}</ul>
+                        </div>
+                        ${(h.agent_notes || []).length ? `<div>
+                            <div class="text-[10px] uppercase tracking-wide text-slate-500 mb-1">Scoring agent</div>
+                            <ul class="space-y-1 text-slate-300">${h.agent_notes.map((w) => `<li class="flex gap-2"><span class="text-emerald-500/70">·</span><span>${esc(w)}</span></li>`).join("")}</ul>
+                        </div>` : ""}
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wide text-slate-500 mb-1">Why Mergero</div>
+                            <ul class="space-y-1 text-slate-300">${(Array.isArray(h.why_mergero) ? h.why_mergero : [h.why_mergero]).filter(Boolean).map((w) => `<li class="flex gap-2"><span class="text-slate-600">·</span><span>${esc(w)}</span></li>`).join("")}</ul>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-3 px-0">
+                            <div class="text-[10px] uppercase tracking-wide text-slate-500">EV range</div>
+                            <div class="text-slate-200 font-semibold">${esc(h.ev_range)}</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wide text-slate-500 mb-1">Who would buy this</div>
+                            ${h.suggested_buyers.length ? buyerCards(h.suggested_buyers) : `<div class="text-slate-400">No buyer in the book is a clear fit yet.</div>`}
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wide text-slate-500 mb-1">Ask the owner</div>
+                            <ul class="space-y-1 text-slate-300">${h.questions_for_owner.map((x) => `<li class="flex gap-2"><span class="text-slate-600">·</span><span>${esc(x)}</span></li>`).join("")}</ul>
+                        </div>
                     </div>` },
                 { n: 5, title: "Outreach", done: sent > 0,
                   help: "A short sequence of personal messages in the right tone for the country. Sending is simulated: nothing leaves the app.",
@@ -1223,7 +1301,7 @@
         const DEMO_REPLY = "Thanks for reaching out, happy to talk. Coffee next week works for me.";
         const DEMO = [
             { title: "40 companies, ranked", text: "Every company is scored on how likely it is to need an M&A advisor right now. We open the hottest one.", step: -1 },
-            { title: "Match statistics across the book", text: "Each company is scored against the six buyer mandates. The histogram is the best score per company: how many have a strong buyer, and where the median sits.", view: "book" },
+            { title: "Match statistics across the book", text: "Each company is scored against every buyer mandate. The histogram is the best score per company: how many have a strong buyer, and where the median sits.", view: "book" },
             { title: "Step 2 of 6 · Signals", text: "These events are why this owner may be ready to talk now, for example a founder nearing retirement.", step: 2 },
             { title: "Step 3 of 6 · Scoring", text: "Timing, fit and urgency add up to 100. Buyer-fit statistics show mean, median and spread. A large gap between best and median means one mandate stands out.", step: 3 },
             { title: "Matching: who would buy this", text: "Every mandate is ranked. The dot plot is the score distribution. The stacked bar is the 100 points (sector 50, region 20, size 20, confirmed 10). The size strip is EBITDA vs the buyer's band.", view: "screen" },
@@ -1364,12 +1442,12 @@
         };
         const SOURCE_LABEL = { seed: "dataset", registry: "registry", website: "website", signals: "signals" };
         const SIGNAL_CHIP = {
-            succession: "bg-rose-500/15 text-rose-200",
-            ownership_change: "bg-violet-500/15 text-violet-200",
-            management_change: "bg-sky-500/15 text-sky-200",
-            acquisition: "bg-teal-500/15 text-teal-200",
-            growth: "bg-emerald-500/15 text-emerald-200",
-            capital_need: "bg-amber-400/15 text-amber-200",
+            succession: CHIP_TONE.rose,
+            ownership_change: CHIP_TONE.violet,
+            management_change: CHIP_TONE.sky,
+            acquisition: CHIP_TONE.teal,
+            growth: CHIP_TONE.emerald,
+            capital_need: CHIP_TONE.amber,
         };
         let companies = [];
         let signalLabels = {};
@@ -1392,21 +1470,50 @@
             sourcesLoaded = true;
         }
 
+        function sourceKind(s) {
+            const st = String(s.status || "");
+            if (st === "live" || st === "loaded" || st === "configured" || st.startsWith("demo mode")) return "on";
+            if (st === "on demand" || st === "mailto only") return "idle";
+            return "off";
+        }
+        function sourceChips(s, muted) {
+            return (s.tags || []).slice(0, 5).map((t) => {
+                const label = typeof t === "string" ? t : t.label;
+                const tone = typeof t === "string" ? "slate" : t.tone;
+                return chip(label, tone, muted);
+            }).join("");
+        }
+        function sourceRow(s) {
+            const kind = sourceKind(s);
+            const muted = kind === "off";
+            const dot = kind === "on" ? "bg-emerald-400" : kind === "idle" ? "bg-amber-400" : "bg-slate-600";
+            const name = kind === "off" ? "text-slate-500" : "text-white";
+            const count = kind === "on" ? "text-emerald-400" : kind === "idle" ? "text-amber-200" : "text-slate-600";
+            return `<div class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg ${kind === "on" ? "bg-slate-900/70" : ""}" title="${esc(s.detail || s.status || "")}">
+                <span class="h-1.5 w-1.5 rounded-full shrink-0 ${dot}"></span>
+                <div class="flex-1 min-w-0 flex items-center gap-2">
+                    <span class="text-[13px] ${name} truncate">${esc(s.name)}</span>
+                    <span class="flex flex-wrap gap-1 min-w-0">${sourceChips(s, muted)}</span>
+                </div>
+                <span class="shrink-0 text-xs tabular-nums ${count}">${s.count}</span>
+            </div>`;
+        }
         async function loadSources() {
             try {
                 const res = await api("/api/sources");
-                const statusTone = (s) => s === "live" || s === "loaded" ? "text-emerald-400" : s === "offline" ? "text-rose-300" : "text-slate-400";
-                const typeLabel = { internal: "Internal", public: "Public", live: "Live" };
-                document.getElementById("sourceCards").innerHTML = res.data.map((s) => `
-                    <div class="bg-slate-800/50 rounded-xl p-3 space-y-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">${esc(typeLabel[s.type] || s.type)}</span>
-                            <span class="text-[10px] font-semibold ${statusTone(s.status)}">● ${esc(s.status)}</span>
-                        </div>
-                        <div class="text-sm font-semibold text-white leading-tight">${esc(s.name)}</div>
-                        <div class="text-2xl font-extrabold text-white">${s.count}</div>
-                        <div class="text-[11px] text-slate-500 leading-snug">${esc(s.detail)}</div>
-                    </div>`).join("");
+                const rows = res.data || [];
+                const ready = rows.filter((s) => sourceKind(s) === "on");
+                const rest = rows.filter((s) => sourceKind(s) !== "on");
+                document.getElementById("sourceMeta").textContent = `${ready.length}/${rows.length} ready`;
+                document.getElementById("sourceCards").innerHTML = `
+                    ${ready.map(sourceRow).join("")}
+                    ${rest.length ? `<details class="rounded-lg">
+                        <summary class="px-3 py-1.5 text-[12px] text-slate-400 hover:text-slate-200 cursor-pointer list-none flex items-center justify-between">
+                            ${rest.length} idle
+                            <span class="text-slate-600">▾</span>
+                        </summary>
+                        <div class="space-y-0.5">${rest.map(sourceRow).join("")}</div>
+                    </details>` : ""}`;
             } catch (e) { toast(e.message, "error"); }
         }
 
@@ -1813,6 +1920,7 @@
             document.getElementById("drawerBackdrop").classList.remove("hidden");
         }
         function closeDrawer() {
+            closeMailView();
             document.getElementById("drawer").classList.add("translate-x-full");
             document.getElementById("drawerBackdrop").classList.add("hidden");
             drawer = null;
