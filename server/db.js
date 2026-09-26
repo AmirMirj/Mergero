@@ -14,6 +14,12 @@ const DEFAULT_SETTINGS = {
   workspace_id: process.env.ANTHROPIC_WORKSPACE_ID || "",
   model: process.env.CLAUDE_MODEL || "claude-opus-5",
   demo_email: process.env.DEMO_EMAIL || "",   // when set, every real email is redirected here (demo mode, never bulk)
+  // Model provider: "anthropic" (Claude) or "verda" (Mistral Large 3 on Verda/DataCrunch, EU-hosted). See server/llm.js.
+  llm_provider: process.env.LLM_PROVIDER || "",
+  verda_base_url: process.env.VERDA_BASE_URL || process.env.TPM_EXTERNAL_BASE_URL || "",
+  verda_api_key: process.env.VERDA_API_KEY || process.env.TPM_EU_API_KEY || "",
+  verda_model: process.env.VERDA_MODEL || "",
+  llm_fallback: null,     // null = default (fallback to Claude when Verda fails); false = strict EU-only
   voice_samples: "",      // the advisor's own past emails; the writer and humanizer imitate this voice
   lint_threshold: 35,     // human-language score above which a draft cannot be sent without an override
   sender: {
@@ -302,6 +308,12 @@ export function publicSettings() {
     model: s.model,
     voice_samples: s.voice_samples || "",
     demo_email: s.demo_email || "",
+    llm_provider: s.llm_provider || "",
+    verda_base_url: s.verda_base_url || "",
+    verda_api_key_set: Boolean(s.verda_api_key),
+    verda_api_key_masked: s.verda_api_key ? `${String(s.verda_api_key).slice(0, 5)}…${String(s.verda_api_key).slice(-4)}` : "",
+    verda_model: s.verda_model || "",
+    llm_fallback: s.llm_fallback,
     lint_threshold: s.lint_threshold ?? 35,
     sender: s.sender,
     style_rules: s.style_rules,

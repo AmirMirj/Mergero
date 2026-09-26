@@ -5,7 +5,18 @@ export class MergeroClient {
     this.baseUrl = String(baseUrl || "http://localhost:3000").replace(/\/+$/, "");
   }
 
+  // Since the desk merge, /api/companies, /api/buyers and a few others belong to Amir's desk UI; the engine's own versions
+  // are reached under /api/engine/… (rewritten server-side). An engine from before the merge has no such route (Express's
+  // plain-text 404), and then the original path is used.
   async request(method, path, body) {
+    if (path.startsWith("/api/") && !path.startsWith("/api/engine/")) {
+      try { return await this.send(method, `/api/engine/${path.slice(5)}`, body); }
+      catch (err) { if (!err.noRoute) throw err; }
+    }
+    return this.send(method, path, body);
+  }
+
+  async send(method, path, body) {
     let res;
     try {
       res = await fetch(`${this.baseUrl}${path}`, {
@@ -19,7 +30,7 @@ export class MergeroClient {
     const text = await res.text();
     let data;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-    if (!res.ok) throw new Error((data && typeof data === "object" && data.error) || `${res.status} ${res.statusText}`);
+    if (!res.ok) throw Object.assign(new Error((data && typeof data === "object" && data.error) || `${res.status} ${res.statusText}`), { status: res.status, noRoute: res.status === 404 && typeof data !== "object" });
     return data;
   }
 

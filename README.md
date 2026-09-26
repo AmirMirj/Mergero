@@ -1,4 +1,33 @@
-# Mergero Origination Engine
+# Mergero Origination Desk
+
+One app, three builds merged: **Amir's Origination Desk** is the front door (the UI, the workflow and the guided demo are his, untouched), **our Node engine** supplies every number behind it (open registers with real owner ages, sourced web research, Claude scoring, humanised outreach with a human-language gate and per-advisor caps, real email, triage that re-scores the prospect), and **Son's Finnish company profiler** adds per-fact evidence for Finnish companies.
+
+## Launch (2 minutes)
+
+```bash
+npm install
+npm start
+```
+
+Open http://localhost:3000 — the Origination Desk. The advanced console (inbox, buyer notes, learning loop, settings) is at http://localhost:3000/engine. Put your keys in `.env` (copy `.env.example`): `ANTHROPIC_API_KEY` (+ `ANTHROPIC_WORKSPACE_ID` for org keys), optional `RESEND_API_KEY`/`RESEND_FROM` for real email and `DEMO_EMAIL` to redirect every send to yourself.
+
+Optional Python parts (Finnish profiler, Amir's engine tests): see `docs/python-setup.md`. The app runs without them.
+
+## What is whose
+
+| Layer | From | Notes |
+|---|---|---|
+| UI, workflow, guided demo (`public/desk/index.html`) | Amir | served at `/`; his API contract is implemented by `server/desk/routes.js` |
+| Rule engines: trigger decay, scoring parts, buyer-fit checks and charts, hypothesis, CRM rules, templates (`server/desk/engine.js`) | Amir | faithful JS port; used for the desk's numbers and as the no-API-key fallback |
+| Data: registries (FI/NO/DK, owner ages), research dossiers, Claude enrichment/scoring/matching, humanised outreach + linter, Resend email, advisor caps, triage + re-score, intake, learning loop (`server/*.js`) | Dang (+ two helper sessions) | replaces Amir's CSV/mock data and simulated sending |
+| Finnish per-fact profiles from PRH + XBRL + website (`python/company-scraper`, `server/adapters/son_scraper.js`) | Son | optional source for Finnish companies |
+
+## Demo (Amir's guided demo, real data behind it)
+
+Click **Start demo** on the Desk. The engine drafts four personal messages (Claude + humanizer, linter-checked), "sends" the first one for real through Resend to `DEMO_EMAIL`, triages the owner's reply with Claude and re-scores, then walks through first call and engagement letter. Pre-run *Enrich* on the demo companies beforehand so research is already there.
+
+---
+
 
 Sell-side M&A deal-origination copilot. Turns a thin prospect-database row into a researched, scored, buyer-matched prospect with a humanized 3-touch outreach sequence, triages the owner's replies, and gathers the information Mergero needs through a conversational owner intake link — at pipeline scale, with a human approving every message before it leaves.
 
@@ -53,6 +82,28 @@ The dashboard's **Scale numbers** card is measured, not assumed: every Claude ca
 ### Demo mode for real email
 
 Set **Settings → Demo mode: send everything to** (or `DEMO_EMAIL` in `.env`) and every real email the app sends — owner sequences, follow-ups, reply drafts, buyer notes, pitches — goes to that address instead, one per action, with the intended recipient in the subject. Resend's `onboarding@resend.dev` sender needs no domain and delivers only to the account owner, which is what a demo needs.
+
+## Running on Verda's Mistral Large 3 (EU-hosted)
+
+The model provider is switchable. Set in `.env` (or under `/engine` → Settings → Model provider):
+
+```
+LLM_PROVIDER=verda
+VERDA_BASE_URL=https://containers.datacrunch.io/<deployment>/v1
+VERDA_API_KEY=dc_...
+VERDA_MODEL=mistral-large-3
+LLM_FALLBACK=anthropic        # or none for strict EU-only processing
+```
+
+Every agent (enrichment, scoring, matching, outreach, humanizer, triage, intake, buyer notes, pitch) then runs on Mistral through the OpenAI-compatible chat-completions endpoint with JSON-schema structured output and Zod validation (one corrective retry). Claude's web search/fetch tools are Anthropic-only: with `LLM_FALLBACK=none` research stays local (registers, site crawler, Finnish profiler). `GET /api/llm/status` pings the endpoint; the Desk's Data sources tab shows the active model.
+
+### If no model is reachable
+
+The Desk keeps working on Amir's rule engines: scoring, triggers, hypothesis, template outreach and rule-based reply qualification all run without a model; sending still goes through Resend. Two things to check first: on Verda, that the container deployment named in `VERDA_BASE_URL` is running (a 404 "no such container deployment" means it is stopped or renamed); on Anthropic, the usage limit in the Console (a 400 "reached your specified API usage limits" means the key is capped until the reset date). `GET /api/llm/status` shows both.
+
+### Proving the API calls
+
+`scripts/prove-apis.sh [base-url] [--send]` makes real calls and prints what came back: model provider status, a Claude scoring call with its metered cost, the Norwegian and Finnish registers, registry reach, owner ages from the roles register, Resend status (and one demo email with `--send`), Son's Finnish profiler through the Desk's enrich, the live source list, and the learning loop. Example: `bash scripts/prove-apis.sh http://95.133.253.84:3000`.
 
 ## Web research: the company's whole web presence, with sources
 

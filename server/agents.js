@@ -2,6 +2,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { icpForPrompt, MESSAGING_PRINCIPLES, READINESS_SIGNALS } from "./playbook.js";
+import * as llm from "./llm.js";
 import {
   EnrichmentSchema, ScoreSchema, MatchRerankSchema, OutreachSchema,
   HumanizerSchema, TriageSchema, ReplyScoreSchema, IntakeTurnSchema,
@@ -15,7 +16,7 @@ const als = new AsyncLocalStorage();
 const PRICES = { "claude-opus-5": [5, 25], "claude-opus-5-5": [4, 20], "claude-opus-4-8": [5, 25], "claude-opus-4-7": [5, 25], "claude-opus-4-6": [5, 25], "claude-sonnet-5": [2, 10], "claude-sonnet-4-6": [3, 15], "claude-haiku-4-5": [1, 5], "claude-fable-5": [10, 50], "claude-fable-5-1": [10, 50] };
 export const usage = { total: { calls: 0, input_tokens: 0, output_tokens: 0, cache_read: 0, cache_write: 0, usd: 0 }, by_company: {}, by_agent: {} };
 export function costOf(u = {}, model = "claude-opus-5") {
-  const [pin, pout] = PRICES[model] || PRICES["claude-opus-5"];
+  const [pin, pout] = PRICES[model] || (/mistral/i.test(model) ? llm.verdaConfig().price : PRICES["claude-opus-5"]);
   return ((u.input_tokens || 0) * pin + (u.output_tokens || 0) * pout + (u.cache_creation_input_tokens || 0) * pin * 1.25 + (u.cache_read_input_tokens || 0) * pin * 0.1) / 1e6;
 }
 export function track(u, model, agent = "other") {
@@ -57,6 +58,18 @@ function client(settings) {
 
 // One structured call. Thinking is adaptive on every current model; effort tunes depth vs. latency.
 export async function parse(settings, { schema, system, user, effort = "medium", max_tokens = 16000 }) {
+  // Provider switch: Verda's Mistral Large 3 (EU-hosted) takes every structured call when selected; Claude remains the
+  // fallback unless the operator turned it off (strict data sovereignty).
+  let verdaFailure = null;
+  if (llm.provider(settings) === "verda") {
+    try {
+      return await llm.verdaParse(settings, { schema, system, user, max_tokens: Math.min(max_tokens, 16000), name: "agent_output", onUsage: (u, model) => track(u, model) });
+    } catch (err) {
+      if (!llm.fallbackAllowed(settings) || !(settings.api_key || process.env.ANTHROPIC_API_KEY)) throw err;
+      console.warn(`[llm] Verda failed (${err.message}); falling back to Claude`);
+      verdaFailure = err.message;
+    }
+  }
   let res;
   try {
     res = await client(settings).messages.parse({
@@ -72,7 +85,7 @@ export async function parse(settings, { schema, system, user, effort = "medium",
       if (/anthropic-workspace-id/i.test(err.message)) {
         throw new Error("Your API key is org-level, so Anthropic requires a workspace ID. Paste it under Settings → Anthropic workspace ID (Console → Settings → Workspaces, looks like wrkspc_…).");
       }
-      throw new Error(`Claude API ${err.status}: ${err.message}`);
+      throw new Error(`${verdaFailure ? `Verda failed (${verdaFailure}) and the Claude fallback failed too: ` : ""}Claude API ${err.status}: ${err.message}`);
     }
     if (err?.name === "ZodError" || err?.issues) throw new Error("Model output did not match the expected schema; please retry.");
     throw err;
@@ -347,6 +360,9 @@ export async function enrich(company, settings) {
 }
 
 async function researchWithWeb(company, facts, settings) {
+  // Web search/fetch are Claude server tools. In strict EU-only mode (Verda without fallback) research stays local:
+  // registries, the site crawler and the Finnish profiler still run; enrichment then works from those facts.
+  if (!llm.webToolsAvailable(settings)) throw new Error("web research tools are not available on the Verda provider in strict mode");
   const c = client(settings);
   const params = {
     model: settings.model || "claude-opus-5",
@@ -450,21 +466,34 @@ const FRAMING_GUIDE = {
   exit: "Full sale, handled gently: acknowledge that a succession or exit may be years away, offer a no-commitment conversation about options and what the buyers who want this kind of company value, without pushing timing.",
 };
 
-export async function outreach(company, settings, { language = "en", channel, framing = "open" } = {}) {
+export async function outreach(company, settings, { language = "en", channel, framing = "open", touches = 3 } = {}) {
   channel = channel || company.channel || "email";
   framing = FRAMING_GUIDE[framing] ? framing : "open";
+  touches = Math.max(1, Math.min(5, Number(touches) || 3));
+  const cadence = touches >= 4 ? "step 1 day 0; step 2 day 4 (half the length, one new angle); step 3 day 10 (a short LinkedIn-style note or email offering a one-page anonymised view of what buyers want in their sector); step 4 day 21 (closes the loop politely, leaves the door open)" : null;
   const s = settings.sender;
   const matchLine = company.matches?.length
     ? `${company.matches.length} buyer${company.matches.length > 1 ? "s" : ""} in our network currently fit this profile: ${company.matches.slice(0, 3).map((m) => `${m.buyer_name} (fit ${m.fit})`).join("; ")}.`
     : "No specific buyer matches yet; speak about buyer demand in the sector in general terms.";
   const verified = outreachFacts(company);
-  const out = await parse(settings, {
+  // Adaptive thinking shares max_tokens with the answer: at high effort on a research-heavy prompt the JSON can get cut
+  // off ("Unterminated string"). Medium effort first; on truncation retry once at low effort before the caller falls back.
+  const request = (effort) => parse(settings, {
     schema: OutreachSchema,
-    effort: "high",
+    effort,
+    max_tokens: 32000,
+
     system: `${MERGERO_CONTEXT}\nYou write first-contact outreach for ${s.name}, ${s.title} at ${s.firm}, to the owner of a private company. Goal of touch 1: earn a 20-minute warm-up conversation, not a mandate. Style rules (non-negotiable): ${settings.style_rules}\nProof points you may use sparingly (max one per message): ${settings.value_props.join(" | ")}.\nChannel conventions: email = 90-140 words with a plain subject line that reads like a colleague wrote it (no clickbait); linkedin = 40-80 words, no subject, first-name friendly; call_script = a 60-second opener with one question.\nSequence: step 1 day 0 opens with one specific observation about their company and one concrete statement of buyer demand; step 2 (day 5-7) adds a new angle (a comparable transaction pattern, timing, or a data point) in half the length; step 3 (day 12-16) closes the loop politely and leaves the door open. Never mention AI, never mention that this is a sequence, never use placeholders like [Name].\nSpecific observations must come from the verified research facts or the enrichment profile; prefer a recent, dated fact. Never quote the company's own financial figures (revenue, profit, margins) back to the owner.\nConversation framing for this sequence: ${FRAMING_GUIDE[framing]}\nMergero messaging principles:\n${MESSAGING_PRINCIPLES}\nWrite like a person: vary sentence length, use one or two contractions, one idea per paragraph, no lists, no headings, no bold, at most one question, and nothing that could be pasted unchanged into an email to a different company.${voiceBlock(settings)}`,
-    user: `Write the 3-message sequence in ${LANG[language] || language} on channel "${channel}" (for a call_script or linkedin channel, keep the 3 steps but adapt length).\n\nProspect:\n${companyFacts(company)}\n\nEnrichment:\n${JSON.stringify(company.enrichment || {}, null, 1)}\n\n${verified ? `Verified research facts (each has a source):\n${verified}\n\n` : ""}Why now (analyst view): ${company.score?.why_now || "n/a"}\nRecommended timing: ${company.score?.recommended_timing || "n/a"}\n\nBuyer demand: ${matchLine}\n\nSign as ${s.name}, ${s.title}, ${s.firm}${s.phone ? ", " + s.phone : ""}.`,
+    user: `Write the ${touches}-message sequence in ${LANG[language] || language} on channel "${channel}" (for a call_script or linkedin channel, keep the ${touches} steps but adapt length).${cadence ? ` Cadence for this sequence: ${cadence}.` : ""}\n\nProspect:\n${companyFacts(company)}\n\nEnrichment:\n${JSON.stringify(company.enrichment || {}, null, 1)}\n\n${verified ? `Verified research facts (each has a source):\n${verified}\n\n` : ""}Why now (analyst view): ${company.score?.why_now || "n/a"}\nRecommended timing: ${company.score?.recommended_timing || "n/a"}\n\nBuyer demand: ${matchLine}\n\nSign as ${s.name}, ${s.title}, ${s.firm}${s.phone ? ", " + s.phone : ""}.`,
   });
-  return out.messages.slice(0, 3).map((m, i) => ({ ...m, step: i + 1, language, framing }));
+  let out;
+  try { out = await request("medium"); }
+  catch (err) {
+    if (!/Unterminated|structured output|schema/i.test(err.message)) throw err;
+    console.warn(`[outreach] retrying at low effort after: ${err.message.slice(0, 120)}`);
+    out = await request("low");
+  }
+  return out.messages.slice(0, touches).map((m, i) => ({ ...m, step: i + 1, language, framing }));
 }
 
 // ---------- 5. Humanizer critic (catches AI/template tells, rewrites) ----------

@@ -269,7 +269,7 @@ function selectHtml(name, options, value, extra) {
 
 /* ================= settings / banner ================= */
 async function loadSettings() {
-  try { state.settings = await api('/api/settings'); }
+  try { state.settings = await api('/api/engine/settings'); }
   catch (e) { state.settings = null; }
   updateBanner();
 }
@@ -327,10 +327,10 @@ async function renderDashboard() {
   main.innerHTML = pageSkeleton();
   let stats, companies;
   try {
-    const res = await Promise.all([api('/api/stats'), api('/api/companies'), api('/api/watch/alerts?limit=12').catch(function () { return null; }),
-      api('/api/suggestions').catch(function () { return null; }), api('/api/pairings').catch(function () { return []; }),
-      api('/api/learning').catch(function () { return null; }), api('/api/registry/reach').catch(function () { return null; }),
-      api('/api/advisors/capacity').catch(function () { return null; })]);
+    const res = await Promise.all([api('/api/engine/stats'), api('/api/engine/companies'), api('/api/engine/watch/alerts?limit=12').catch(function () { return null; }),
+      api('/api/engine/suggestions').catch(function () { return null; }), api('/api/engine/pairings').catch(function () { return []; }),
+      api('/api/engine/learning').catch(function () { return null; }), api('/api/engine/registry/reach').catch(function () { return null; }),
+      api('/api/engine/advisors/capacity').catch(function () { return null; })]);
     stats = res[0]; companies = res[1]; state.watch = res[2]; state.suggest = res[3]; state.pairings = res[4] || []; state.learning = res[5]; state.reach = res[6]; state.capacity = res[7];
   } catch (e) { main.innerHTML = errorState(e); return; }
   if (state.view !== 'dashboard') return;
@@ -550,7 +550,7 @@ function pairingModal(p) {
       : '<button type="button" class="btn btn-secondary" data-action="close-modal">Close</button>');
   openModal('Pairing · ' + (r.passed != null ? r.passed + ' of ' + r.total + ' checks pass' : ''), body, foot, { wide: true });
 }
-async function refreshPairings() { state.pairings = await api('/api/pairings').catch(function () { return state.pairings; }); if (state.view === 'dashboard') drawDashboard(); }
+async function refreshPairings() { state.pairings = await api('/api/engine/pairings').catch(function () { return state.pairings; }); if (state.view === 'dashboard') drawDashboard(); }
 
 /* ---- Buyer-side notes and contacts (shown on the Buyers page) ---- */
 function buyerOppsHtml(b) {
@@ -593,7 +593,7 @@ function watchCardHtml(jobRunning) {
 
 async function runWatch(btn) {
   await withBusy(btn, 'Starting…', async function () {
-    const res = await api('/api/watch/run', 'POST', {});
+    const res = await api('/api/engine/watch/run', 'POST', {});
     state.job = { id: res.job_id, kind: 'watch', total: res.total || 0, done: 0, current_company: null, errors: [], finished: !res.total };
     toast('Checking ' + plural(res.total || 0, 'website') + ' for changes', 'info');
     if (state.view === 'dashboard') drawDashboard();
@@ -640,7 +640,7 @@ function jobProgressHtml(job) {
 async function runPipeline(btn) {
   const newCount = (state.stats && state.stats.by_stage && state.stats.by_stage.new) || 0;
   await withBusy(btn, 'Starting…', async function () {
-    const res = await api('/api/pipeline/run', 'POST', { stage: 'new' });
+    const res = await api('/api/engine/pipeline/run', 'POST', { stage: 'new' });
     state.job = { id: res.job_id, total: newCount, done: 0, current_company: null, errors: [], finished: false };
     toast('Pipeline started for ' + plural(newCount, 'prospect'), 'info');
     if (state.view === 'dashboard') drawDashboard();
@@ -653,7 +653,7 @@ function pollJob() {
   if (!state.job || state.job.finished) return;
   state.jobTimer = setTimeout(async function () {
     try {
-      const j = await api('/api/jobs/' + encodeURIComponent(state.job.id));
+      const j = await api('/api/engine/jobs/' + encodeURIComponent(state.job.id));
       state.job = Object.assign({}, state.job, j);
       const el = document.getElementById('job-progress');
       if (el) el.innerHTML = jobProgressHtml(state.job);
@@ -679,7 +679,7 @@ function pollJob() {
 /* ================= PROSPECTS ================= */
 async function renderProspects() {
   main.innerHTML = pageSkeleton();
-  try { setCompanies(await api('/api/companies')); }
+  try { setCompanies(await api('/api/engine/companies')); }
   catch (e) { main.innerHTML = errorState(e); return; }
   if (state.view !== 'prospects') return;
   drawProspects();
@@ -745,7 +745,8 @@ function drawProspectRows() {
     const o = c.owner || {};
     const readiness = c.score && c.score.readiness != null ? Number(c.score.readiness) : null;
     return '<tr class="clickable" data-action="open-company" data-id="' + attr(c.id) + '">' +
-      '<td class="primary-cell">' + esc(c.name) + '<span class="sub">' + esc([c.city, c.ownership_type].filter(Boolean).join(' · ')) + '</span></td>' +
+      '<td class="primary-cell">' + esc(c.name) + '<span class="sub">' + esc([c.city, c.ownership_type].filter(Boolean).join(' · ')) + '</span>' +
+      (c.website ? '<span class="sub"><a href="' + attr(c.website) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + esc(c.website.replace(/^https?:\/\//, '').replace(/\/$/, '')) + ' ↗</a></span>' : '') + '</td>' +
       '<td>' + (o.name ? '<div class="owner-cell"><span class="avatar-sm">' + esc(initials(o.name)) + '</span><div><div class="n">' + esc(o.name) + '</div><div class="t">' + esc([o.title, o.age ? 'age ' + o.age : ''].filter(Boolean).join(' · ')) + '</div></div></div>' : '<span class="muted">—</span>') + '</td>' +
       '<td class="nowrap" title="' + attr(countryName(c.country)) + '">' + flag(c.country) + ' ' + esc(c.country || '') + '</td>' +
       '<td>' + esc(c.industry || '—') + '</td>' +
@@ -764,7 +765,7 @@ async function runRow(id) {
   state.running['row:' + id] = true;
   drawProspectRows();
   try {
-    const c = await api('/api/companies/' + encodeURIComponent(id) + '/run', 'POST', { language: state.outreachLang, framing: state.outreachFraming });
+    const c = await api('/api/engine/companies/' + encodeURIComponent(id) + '/run', 'POST', { language: state.outreachLang, framing: state.outreachFraming });
     const i = state.companies.findIndex(function (x) { return x.id === id; });
     if (i >= 0) state.companies[i] = c; else state.companies.push(c);
     state.companyMap[c.id] = c;
@@ -840,9 +841,9 @@ async function renderCompany(id, opts) {
   if (!id) { location.hash = '#/prospects'; return; }
   if (!opts.soft) main.innerHTML = pageSkeleton();
   try {
-    const jobs = [api('/api/companies/' + encodeURIComponent(id))];
-    if (!state.learning) api('/api/learning').then(function (L) { state.learning = L; if (state.view === 'company') drawCompany(); }).catch(function () { /* optional */ });
-    if (!state.buyersLoaded) jobs.push(api('/api/buyers'));
+    const jobs = [api('/api/engine/companies/' + encodeURIComponent(id))];
+    if (!state.learning) api('/api/engine/learning').then(function (L) { state.learning = L; if (state.view === 'company') drawCompany(); }).catch(function () { /* optional */ });
+    if (!state.buyersLoaded) jobs.push(api('/api/engine/buyers'));
     const res = await Promise.all(jobs);
     if (res[1]) { state.buyers = res[1]; state.buyersLoaded = true; }
     state.company = res[0];
@@ -1496,8 +1497,8 @@ function inboxStatusOf(c) {
 async function renderInbox(selectedId) {
   if (!state.inbox) main.innerHTML = pageSkeleton();
   try {
-    const jobs = [api('/api/inbox'), api('/api/companies')];
-    if (selectedId) jobs.push(api('/api/companies/' + encodeURIComponent(selectedId)));
+    const jobs = [api('/api/engine/inbox'), api('/api/engine/companies')];
+    if (selectedId) jobs.push(api('/api/engine/companies/' + encodeURIComponent(selectedId)));
     const res = await Promise.all(jobs);
     state.inbox = res[0];
     setCompanies(res[1]);
@@ -1526,8 +1527,8 @@ function scheduleInboxPoll() {
 }
 async function refreshInbox() {
   try {
-    const jobs = [api('/api/inbox')];
-    if (state.company) jobs.push(api('/api/companies/' + encodeURIComponent(state.company.id)));
+    const jobs = [api('/api/engine/inbox')];
+    if (state.company) jobs.push(api('/api/engine/companies/' + encodeURIComponent(state.company.id)));
     const res = await Promise.all(jobs);
     if (state.view !== 'inbox') return;
     state.inbox = res[0];
@@ -1627,7 +1628,7 @@ function inboxPaneHtml(c, inbox) {
 async function renderBuyers() {
   main.innerHTML = pageSkeleton();
   try {
-    const res = await Promise.all([api('/api/buyers'), api('/api/suggestions').catch(function () { return null; }), state.companies.length ? null : api('/api/companies').catch(function () { return null; })]);
+    const res = await Promise.all([api('/api/engine/buyers'), api('/api/engine/suggestions').catch(function () { return null; }), state.companies.length ? null : api('/api/engine/companies').catch(function () { return null; })]);
     state.buyers = res[0]; state.buyersLoaded = true; state.suggest = res[1] || state.suggest;
     if (res[2]) setCompanies(res[2]);
   }
@@ -1714,9 +1715,9 @@ async function renderBuyside(id) {
   const bs = bsState();
   main.innerHTML = pageSkeleton();
   try {
-    bs.list = await api('/api/buyside/mandates');
-    if (id) bs.current = await api('/api/buyside/mandates/' + encodeURIComponent(id));
-    else if (bs.current) bs.current = await api('/api/buyside/mandates/' + encodeURIComponent(bs.current.id)).catch(function () { return null; });
+    bs.list = await api('/api/engine/buyside/mandates');
+    if (id) bs.current = await api('/api/engine/buyside/mandates/' + encodeURIComponent(id));
+    else if (bs.current) bs.current = await api('/api/engine/buyside/mandates/' + encodeURIComponent(bs.current.id)).catch(function () { return null; });
   } catch (e) { main.innerHTML = errorState(e); return; }
   if (state.view !== 'buyside') return;
   drawBuyside();
@@ -1819,11 +1820,19 @@ function bsStopStepper() { const bs = bsState(); bs.running = false; clearInterv
 async function renderSettings() {
   main.innerHTML = pageSkeleton();
   try {
-    const res = await Promise.all([api('/api/settings'), api('/api/mail/status').catch(function () { return null; })]);
+    const res = await Promise.all([api('/api/engine/settings'), api('/api/engine/mail/status').catch(function () { return null; })]);
     state.settings = res[0]; state.mailStatus = res[1]; updateBanner();
   } catch (e) { main.innerHTML = errorState(e); return; }
   if (state.view !== 'settings') return;
   drawSettings();
+  // Provider status is fetched after the form renders (it pings the Verda endpoint, which can take a few seconds).
+  api('/api/engine/llm/status').then(function (st) {
+    const el = document.getElementById('llm-status'); if (!el) return;
+    const v = st.verda || {};
+    el.innerHTML = 'Active: <strong>' + esc(st.provider) + '</strong> · model ' + esc(st.model || '') +
+      (st.provider === 'verda' ? (v.ok ? ' · <span class="text-green">Verda endpoint answered in ' + v.ms + ' ms</span>' : ' · <span class="text-red">Verda endpoint not answering: ' + esc(v.reason || 'unknown') + '</span>') : '') +
+      (st.fallback ? ' · fallback to Claude on' : ' · strict, no fallback') + (st.web_tools ? '' : ' · web search off');
+  }).catch(function () { const el = document.getElementById('llm-status'); if (el) el.textContent = ''; });
 }
 
 function drawSettings() {
@@ -1874,6 +1883,16 @@ function drawSettings() {
     '</div></div></div>' +
     '</div>' +
     '<div>' +
+    '<div class="card"><div class="card-head"><div class="card-title">Model provider</div>' +
+    (s.llm_provider === 'verda' ? '<span class="pill pill-teal">Verda · Mistral Large 3 (EU)</span>' : '<span class="pill">Claude (Anthropic)</span>') + '</div><div class="card-body">' +
+    field('Provider', selectHtml('llm_provider', [['', 'Claude (Anthropic) — default'], ['anthropic', 'Claude (Anthropic)'], ['verda', 'Mistral Large 3 on Verda / DataCrunch (EU-hosted)']], s.llm_provider || ''),
+      'Verda is an OpenAI-compatible chat-completions endpoint. All agents (enrich, score, match, outreach, humanizer, triage, intake, buyer notes) use the selected provider; web search stays a Claude tool.') +
+    field('Verda endpoint (…/v1)', '<input type="text" name="verda_base_url" value="' + attr(s.verda_base_url || '') + '" placeholder="https://containers.datacrunch.io/<deployment>/v1">') +
+    field('Verda API key', '<input type="password" name="verda_api_key" autocomplete="off" placeholder="' + (s.verda_api_key_set ? 'Leave blank to keep the current key (' + esc(s.verda_api_key_masked || '') + ')' : 'dc_…') + '">') +
+    field('Verda model name', '<input type="text" name="verda_model" value="' + attr(s.verda_model || '') + '" placeholder="mistral-large-3">') +
+    '<label class="switch"><input type="checkbox" name="llm_fallback" ' + (s.llm_fallback === false ? '' : 'checked') + '><span class="track"></span>Fall back to Claude when Verda fails (untick for strict EU-only processing)</label>' +
+    '<div class="small muted mt-sm" id="llm-status">Checking provider status…</div>' +
+    '</div></div>' +
     '<div class="card"><div class="card-head"><div class="card-title">Your voice</div><span class="small muted">the strongest anti-AI signal</span></div><div class="card-body">' +
     field('Paste two or three emails you actually wrote to owners', '<textarea name="voice_samples" rows="7" style="min-height:150px" placeholder="Paste real past emails (greeting, rhythm, sign-off). The writer and the humanizer imitate this voice without copying sentences.">' + esc(s.voice_samples || '') + '</textarea>',
       'Kept server-side. Owners’ names in the samples are fine; they are never reused.') +
@@ -1938,6 +1957,12 @@ function settingsFromForm(fd) {
   if (body.lint_threshold == null) delete body.lint_threshold;
   body.mail = { from: String(fd.get('mail_from') || '').trim(), inbound_domain: String(fd.get('mail_inbound_domain') || '').trim() };
   body.demo_email = String(fd.get('demo_email') || '').trim();
+  body.llm_provider = String(fd.get('llm_provider') || '');
+  body.verda_base_url = String(fd.get('verda_base_url') || '').trim();
+  body.verda_model = String(fd.get('verda_model') || '').trim();
+  const vk = String(fd.get('verda_api_key') || '').trim();
+  if (vk) body.verda_api_key = vk;
+  body.llm_fallback = fd.get('llm_fallback') === 'on';
   const mailKey = String(fd.get('mail_api_key') || '').trim();
   if (mailKey) body.mail.resend_api_key = mailKey;
   const secret = String(fd.get('mail_webhook_secret') || '').trim();
@@ -2006,14 +2031,14 @@ async function copyText(text) {
 
 const COMPANY_ACTIONS = {
   people: function (c) {
-    return companyAction('people', function () { return api('/api/companies/' + encodeURIComponent(c.id) + '/people', 'POST'); },
+    return companyAction('people', function () { return api('/api/engine/companies/' + encodeURIComponent(c.id) + '/people', 'POST'); },
       function (r) { const lead = (r && r.people || []).find(function (p) { return p.role_code === 'DAGL'; }) || (r && r.people || [])[0]; return lead ? 'Register: ' + lead.name + ', ' + lead.role + (lead.age ? ', age ' + lead.age : '') : 'No people found in the register'; });
   },
   run: function (c) {
     startRunStepper();
     return companyAction('run', async function () {
       try {
-        const r = await api('/api/companies/' + encodeURIComponent(c.id) + '/run', 'POST', { language: state.outreachLang, framing: state.outreachFraming });
+        const r = await api('/api/engine/companies/' + encodeURIComponent(c.id) + '/run', 'POST', { language: state.outreachLang, framing: state.outreachFraming });
         state.runStep = RUN_STEPS.length; drawCompany();
         await new Promise(function (res) { setTimeout(res, 600); });
         return r;
@@ -2022,43 +2047,43 @@ const COMPANY_ACTIONS = {
   },
   research: function (c) {
     state.tab = 'research';
-    return companyAction('research', function () { return api('/api/companies/' + encodeURIComponent(c.id) + '/research', 'POST'); },
+    return companyAction('research', function () { return api('/api/engine/companies/' + encodeURIComponent(c.id) + '/research', 'POST'); },
       function (r) { const x = r && r.research; return x ? 'Research done: ' + plural((x.facts || []).length, 'sourced fact') + ', ' + plural(((x.financials || {}).rows || []).length, 'year') + ' of financials' : 'Research done'; });
   },
   watch: function (c) {
     state.tab = 'research';
-    return companyAction('watch', function () { return api('/api/companies/' + encodeURIComponent(c.id) + '/watch', 'POST'); },
+    return companyAction('watch', function () { return api('/api/engine/companies/' + encodeURIComponent(c.id) + '/watch', 'POST'); },
       function (r) { const s = r && r.watch && r.watch.last_summary; return s ? 'Checked: ' + s.new_urls + ' new pages, ' + s.changed_pages + ' changed, ' + s.new_facts + ' new facts' : 'Check finished'; });
   },
   teaser: function (c) {
     state.tab = 'buyers';
-    return companyAction('teaser', function () { return api('/api/companies/' + encodeURIComponent(c.id) + '/teaser', 'POST'); }, 'Blind teaser drafted: review the redactions before sending');
+    return companyAction('teaser', function () { return api('/api/engine/companies/' + encodeURIComponent(c.id) + '/teaser', 'POST'); }, 'Blind teaser drafted: review the redactions before sending');
   },
   enrich: function (c) {
     state.tab = 'profile';
-    return companyAction('enrich', function () { return api('/api/companies/' + encodeURIComponent(c.id) + '/enrich', 'POST'); }, 'Enrichment complete');
+    return companyAction('enrich', function () { return api('/api/engine/companies/' + encodeURIComponent(c.id) + '/enrich', 'POST'); }, 'Enrichment complete');
   },
   score: function (c) {
     state.tab = 'score';
-    return companyAction('score', function () { return api('/api/companies/' + encodeURIComponent(c.id) + '/score', 'POST'); },
+    return companyAction('score', function () { return api('/api/engine/companies/' + encodeURIComponent(c.id) + '/score', 'POST'); },
       function (r) { return 'Scored — readiness ' + (r && r.score ? r.score.readiness : '—'); });
   },
   match: function (c) {
     state.tab = 'buyers';
-    return companyAction('match', function () { return api('/api/companies/' + encodeURIComponent(c.id) + '/match', 'POST'); },
+    return companyAction('match', function () { return api('/api/engine/companies/' + encodeURIComponent(c.id) + '/match', 'POST'); },
       function (r) { return plural((r && r.matches || []).length, 'buyer match', 'buyer matches') + ' found'; });
   },
   outreach: function (c) {
     state.tab = 'outreach';
-    return companyAction('outreach', function () { return api('/api/companies/' + encodeURIComponent(c.id) + '/outreach', 'POST', { language: state.outreachLang, framing: state.outreachFraming, channel: c.channel || 'email' }); },
+    return companyAction('outreach', function () { return api('/api/engine/companies/' + encodeURIComponent(c.id) + '/outreach', 'POST', { language: state.outreachLang, framing: state.outreachFraming, channel: c.channel || 'email' }); },
       'Outreach sequence drafted and humanized');
   },
   'intake-link': function (c) {
     state.tab = 'intake';
     return companyAction('intake-link', async function () {
-      const res = await api('/api/companies/' + encodeURIComponent(c.id) + '/intake-link', 'POST');
+      const res = await api('/api/engine/companies/' + encodeURIComponent(c.id) + '/intake-link', 'POST');
       if (res && res.url) state.intakeUrls[c.id] = res.url;
-      return api('/api/companies/' + encodeURIComponent(c.id));
+      return api('/api/engine/companies/' + encodeURIComponent(c.id));
     }, 'Intake link ready — share it with the owner');
   }
 };
@@ -2077,7 +2102,7 @@ const ACTIONS = {
   'queue-first-touches': async function (el) {
     el.disabled = true;
     try {
-      const r = await api('/api/outreach/queue', 'POST', {});
+      const r = await api('/api/engine/outreach/queue', 'POST', {});
       if (!r.queued) toast('No approved first-touch email to queue. Approve step 1 on a few prospects first.');
       else toast('Queued ' + plural(r.queued, 'first touch', 'first touches') + ': ' + r.advisors.map(function (a) {
         return a.advisor + ' ' + a.queued + ' over ' + plural(a.days, 'working day') + ' (cap ' + a.daily_cap + '/day), from ' + fmtDate(a.first_at);
@@ -2090,9 +2115,9 @@ const ACTIONS = {
     const label = el.innerHTML;
     el.innerHTML = '<span class="spinner"></span>Syncing…';
     try {
-      const r = await api('/api/mgx/sync', 'POST', {});
+      const r = await api('/api/engine/mgx/sync', 'POST', {});
       toast('MGX ' + (r.source === 'mgx' ? 'API' : 'sample') + ': ' + plural(r.mandates, 'mandate') + ' · ' + r.added + ' new · ' + r.updated + ' updated' + (r.deactivated ? ' · ' + r.deactivated + ' closed' : ''), 'success', 6000);
-      state.buyers = await api('/api/buyers');
+      state.buyers = await api('/api/engine/buyers');
     } catch (e) { toast(e.message, 'error'); }
     el.disabled = false; el.innerHTML = label;
     if (state.view === 'buyers') drawBuyers();
@@ -2114,7 +2139,7 @@ const ACTIONS = {
     const payload = { body: body ? body.value : '' };
     if (subject) payload.subject = subject.value;
     messageAction(id, 'save-message', async function () {
-      const m = await api('/api/messages/' + encodeURIComponent(id), 'PUT', payload);
+      const m = await api('/api/engine/messages/' + encodeURIComponent(id), 'PUT', payload);
       delete state.editing[id];
       return m;
     }, 'Message saved');
@@ -2122,7 +2147,7 @@ const ACTIONS = {
   'approve-message': function (el) {
     const id = el.dataset.id;
     messageAction(id, 'approve-message', async function () {
-      const m = await api('/api/messages/' + encodeURIComponent(id) + '/approve', 'POST');
+      const m = await api('/api/engine/messages/' + encodeURIComponent(id) + '/approve', 'POST');
       toast(m && m.status === 'scheduled' ? 'Approved — goes out ' + fmtDate(m.send_at) : 'Approved — ready to send');
       return m;
     });
@@ -2130,25 +2155,25 @@ const ACTIONS = {
   'schedule-message': function (el) {
     const id = el.dataset.id;
     messageAction(id, 'schedule-message', async function () {
-      const m = await api('/api/messages/' + encodeURIComponent(id) + '/approve', 'POST');
+      const m = await api('/api/engine/messages/' + encodeURIComponent(id) + '/approve', 'POST');
       toast(m && m.status === 'scheduled' ? 'Scheduled for ' + fmtDate(m.send_at) : 'Kept as approved — send it by hand');
       return m;
     });
   },
   'unschedule-message': function (el) {
     const id = el.dataset.id;
-    messageAction(id, 'unschedule-message', function () { return api('/api/messages/' + encodeURIComponent(id) + '/unschedule', 'POST'); }, 'Taken off the clock — stays approved');
+    messageAction(id, 'unschedule-message', function () { return api('/api/engine/messages/' + encodeURIComponent(id) + '/unschedule', 'POST'); }, 'Taken off the clock — stays approved');
   },
   'retry-triage': function (el) {
     const cid = el.dataset.company, eid = el.dataset.entry;
-    companyAction('reply', function () { return api('/api/companies/' + encodeURIComponent(cid) + '/replies/' + encodeURIComponent(eid) + '/triage', 'POST'); }, 'Reply triaged');
+    companyAction('reply', function () { return api('/api/engine/companies/' + encodeURIComponent(cid) + '/replies/' + encodeURIComponent(eid) + '/triage', 'POST'); }, 'Reply triaged');
   },
   'inbox-filter': function (el) { state.inboxFilter = el.dataset.filter; drawInbox(); },
   'inbox-refresh': function () { refreshInbox(); },
   'inbox-disqualify': async function (el) {
     if (!confirm('Disqualify this prospect? Scheduled follow-ups are cancelled.')) return;
     try {
-      const c = await api('/api/companies/' + encodeURIComponent(el.dataset.id) + '/stage', 'POST', { stage: 'disqualified' });
+      const c = await api('/api/engine/companies/' + encodeURIComponent(el.dataset.id) + '/stage', 'POST', { stage: 'disqualified' });
       setCompany(c); toast('Disqualified'); await refreshInbox();
     } catch (e) { toast(e.message, 'error'); }
   },
@@ -2158,7 +2183,7 @@ const ACTIONS = {
     const companyId = sel && sel.value;
     if (!companyId) { toast('Pick a prospect first', 'error'); return; }
     await withBusy(el, 'Triaging…', async function () {
-      const c = await api('/api/mail/unmatched/' + encodeURIComponent(id) + '/assign', 'POST', { company_id: companyId });
+      const c = await api('/api/engine/mail/unmatched/' + encodeURIComponent(id) + '/assign', 'POST', { company_id: companyId });
       toast('Assigned to ' + c.name + ' and triaged');
       setCompany(c);
       location.hash = '#/inbox/' + c.id;
@@ -2166,26 +2191,26 @@ const ACTIONS = {
     });
   },
   'discard-unmatched': async function (el) {
-    try { await api('/api/mail/unmatched/' + encodeURIComponent(el.dataset.id), 'DELETE'); toast('Discarded'); await refreshInbox(); }
+    try { await api('/api/engine/mail/unmatched/' + encodeURIComponent(el.dataset.id), 'DELETE'); toast('Discarded'); await refreshInbox(); }
     catch (e) { toast(e.message, 'error'); }
   },
   'reject-message': function (el) {
     const id = el.dataset.id;
-    messageAction(id, 'reject-message', function () { return api('/api/messages/' + encodeURIComponent(id) + '/reject', 'POST'); }, 'Message rejected');
+    messageAction(id, 'reject-message', function () { return api('/api/engine/messages/' + encodeURIComponent(id) + '/reject', 'POST'); }, 'Message rejected');
   },
   'humanize-message': function (el) {
     const id = el.dataset.id;
-    messageAction(id, 'humanize-message', function () { return api('/api/messages/' + encodeURIComponent(id) + '/humanize', 'POST'); }, 'Humanizer pass complete');
+    messageAction(id, 'humanize-message', function () { return api('/api/engine/messages/' + encodeURIComponent(id) + '/humanize', 'POST'); }, 'Humanizer pass complete');
   },
   'send-message': function (el) {
     const id = el.dataset.id;
     const c = state.company;
     messageAction(id, 'send-message', async function () {
-      const res = await api('/api/messages/' + encodeURIComponent(id) + '/send', 'POST');
+      const res = await api('/api/engine/messages/' + encodeURIComponent(id) + '/send', 'POST');
       if (res && res.message) replaceMessage(res.message);
       if (res && res.mailto) { try { window.open(res.mailto, '_blank'); } catch (e) { /* popup blocked */ } }
       if (c) {
-        const fresh = await api('/api/companies/' + encodeURIComponent(c.id));
+        const fresh = await api('/api/engine/companies/' + encodeURIComponent(c.id));
         setCompany(fresh);
       }
       const scheduled = ((state.company && state.company.messages) || []).filter(function (m) { return m.status === 'scheduled'; }).length;
@@ -2224,7 +2249,7 @@ const ACTIONS = {
     const b = state.buyers.find(function (x) { return x.id === el.dataset.id; });
     if (!b || !confirm('Delete buyer mandate "' + b.name + '"?')) return;
     await withBusy(el, 'Deleting…', async function () {
-      await api('/api/buyers/' + encodeURIComponent(b.id), 'DELETE');
+      await api('/api/engine/buyers/' + encodeURIComponent(b.id), 'DELETE');
       state.buyers = state.buyers.filter(function (x) { return x.id !== b.id; });
       toast('Buyer deleted');
       drawBuyers();
@@ -2234,11 +2259,11 @@ const ACTIONS = {
   'draft-buyer-note': async function (el) {
     const buyerId = el.dataset.buyer, companyId = el.dataset.company;
     await withBusy(el, 'Drafting…', async function () {
-      const r = await api('/api/buyers/' + encodeURIComponent(buyerId) + '/notes', 'POST', { company_id: companyId });
+      const r = await api('/api/engine/buyers/' + encodeURIComponent(buyerId) + '/notes', 'POST', { company_id: companyId });
       const i = (state.buyers || []).findIndex(function (b) { return b.id === buyerId; });
       if (i >= 0) state.buyers[i] = r.buyer;
       toast('Anonymised buyer note drafted — review it on the Buyers page');
-      state.suggest = await api('/api/suggestions').catch(function () { return state.suggest; });
+      state.suggest = await api('/api/engine/suggestions').catch(function () { return state.suggest; });
       if (state.view === 'buyers') drawBuyers(); else if (state.view === 'dashboard') drawDashboard(); else location.hash = '#/buyers';
     });
   },
@@ -2248,7 +2273,7 @@ const ACTIONS = {
     if (el.dataset.company) body.company_id = el.dataset.company;
     if (el.dataset.buyer) body.buyer_id = el.dataset.buyer;
     await withBusy(el, 'Pairing…', async function () {
-      const p = await api('/api/pairings', 'POST', body);
+      const p = await api('/api/engine/pairings', 'POST', body);
       state.pairings = [p].concat((state.pairings || []).filter(function (x) { return x.id !== p.id; }));
       pairingModal(p);
       if (state.view === 'dashboard') drawDashboard();
@@ -2258,7 +2283,7 @@ const ACTIONS = {
   'pairing-accept': async function (el) {
     const id = el.dataset.id;
     await withBusy(el, 'Accepting…', async function () {
-      const r = await api('/api/pairings/' + encodeURIComponent(id) + '/accept', 'POST');
+      const r = await api('/api/engine/pairings/' + encodeURIComponent(id) + '/accept', 'POST');
       closeModal();
       toast(r.buyer_message_id ? 'Pairing accepted — anonymised buyer note drafted, review it on the Buyers page' : 'Pairing accepted — open the owner conversation first; the buyer is told once the owner replies');
       state.buyersLoaded = false; state.companies = [];
@@ -2267,7 +2292,7 @@ const ACTIONS = {
   },
   'pairing-dismiss': async function (el) {
     const id = el.dataset.id;
-    await api('/api/pairings/' + encodeURIComponent(id) + '/dismiss', 'POST').catch(function (e) { toast(e.message, 'error'); });
+    await api('/api/engine/pairings/' + encodeURIComponent(id) + '/dismiss', 'POST').catch(function (e) { toast(e.message, 'error'); });
     closeModal();
     await refreshPairings();
   },
@@ -2275,9 +2300,9 @@ const ACTIONS = {
   'bs-pitch': async function (el) {
     const id = el.dataset.id;
     await withBusy(el, 'Writing pitch…', async function () {
-      const r = await api('/api/buyside/mandates/' + encodeURIComponent(id) + '/pitch', 'POST');
+      const r = await api('/api/engine/buyside/mandates/' + encodeURIComponent(id) + '/pitch', 'POST');
       bsState().current = r.mandate; state.buyersLoaded = false;
-      state.buyers = await api('/api/buyers').catch(function () { return state.buyers; }); state.buyersLoaded = true;
+      state.buyers = await api('/api/engine/buyers').catch(function () { return state.buyers; }); state.buyersLoaded = true;
       toast('Pitch drafted — review it, then send to your inbox');
       drawBuyside();
     });
@@ -2285,7 +2310,7 @@ const ACTIONS = {
   'bs-import': async function (el) {
     const id = el.dataset.id;
     await withBusy(el, 'Adding…', async function () {
-      const r = await api('/api/buyside/mandates/' + encodeURIComponent(id) + '/import', 'POST', { top: Number(el.dataset.top) || 10 });
+      const r = await api('/api/engine/buyside/mandates/' + encodeURIComponent(id) + '/import', 'POST', { top: Number(el.dataset.top) || 10 });
       bsState().current = r.mandate; state.companies = [];
       toast(plural(r.imported, 'target') + ' added to the sell-side pipeline as New');
       drawBuyside();
@@ -2294,24 +2319,24 @@ const ACTIONS = {
   'bs-send': async function (el) {
     const msgId = el.dataset.msg, id = el.dataset.id;
     await withBusy(el, 'Sending…', async function () {
-      await api('/api/buyer-messages/' + encodeURIComponent(msgId) + '/approve', 'POST').catch(function () { /* may already be approved */ });
-      const r = await api('/api/buyer-messages/' + encodeURIComponent(msgId) + '/send', 'POST');
+      await api('/api/engine/buyer-messages/' + encodeURIComponent(msgId) + '/approve', 'POST').catch(function () { /* may already be approved */ });
+      const r = await api('/api/engine/buyer-messages/' + encodeURIComponent(msgId) + '/send', 'POST');
       if (r && r.mailto) { try { window.open(r.mailto, '_blank'); } catch (e) { /* popup blocked */ } }
-      state.buyers = await api('/api/buyers').catch(function () { return state.buyers; });
-      bsState().current = await api('/api/buyside/mandates/' + encodeURIComponent(id));
+      state.buyers = await api('/api/engine/buyers').catch(function () { return state.buyers; });
+      bsState().current = await api('/api/engine/buyside/mandates/' + encodeURIComponent(id));
       toast(r && r.message && r.message.delivery === 'email' ? 'Pitch sent by email' + (state.settings && state.settings.demo_email ? ' to ' + state.settings.demo_email + ' (demo mode)' : '') : 'Pitch opened in your mail client');
       drawBuyside();
     });
   },
   'bs-delete': async function (el) {
     if (!confirm('Delete this mandate and its target list?')) return;
-    await api('/api/buyside/mandates/' + encodeURIComponent(el.dataset.id), 'DELETE');
+    await api('/api/engine/buyside/mandates/' + encodeURIComponent(el.dataset.id), 'DELETE');
     bsState().current = null; location.hash = '#/buyside'; renderBuyside();
   },
   'lint-override': function (el) {
     const id = el.dataset.id, on = el.dataset.value === '1';
     if (on && !confirm('Send this draft even though the human-language check failed?')) return;
-    messageAction(id, 'lint-override', async function () { const m = await api('/api/messages/' + encodeURIComponent(id), 'PUT', { lint_override: on }); toast(on ? 'Override set — sending allowed' : 'Override removed'); return m; });
+    messageAction(id, 'lint-override', async function () { const m = await api('/api/engine/messages/' + encodeURIComponent(id), 'PUT', { lint_override: on }); toast(on ? 'Override set — sending allowed' : 'Override removed'); return m; });
   },
   'buyer-msg-approve': function (el) { buyerMessageAction(el, 'approve', 'Buyer note approved'); },
   'buyer-msg-reject': function (el) { buyerMessageAction(el, 'reject', 'Buyer note rejected'); },
@@ -2319,23 +2344,23 @@ const ACTIONS = {
   /* ---- integrations (mock adapters for the teammate's scraper / matcher / mailer) ---- */
   'mock-profiles': async function (el) {
     await withBusy(el, 'Importing…', async function () {
-      const r = await api('/api/integrations/mock/profiles', 'POST');
+      const r = await api('/api/engine/integrations/mock/profiles', 'POST');
       toast('Imported ' + plural((r.imported || []).length, 'scraper profile') + ' (' + (r.imported || []).reduce(function (n, x) { return n + (x.facts || 0); }, 0) + ' sourced facts)');
       state.companies = [];
     });
   },
   'mock-matches': async function (el) {
     await withBusy(el, 'Importing…', async function () {
-      const r = await api('/api/integrations/mock/matches', 'POST');
+      const r = await api('/api/engine/integrations/mock/matches', 'POST');
       toast('Matcher results applied to ' + plural(r.companies_updated || 0, 'company', 'companies'));
       state.companies = [];
     });
   },
-  'open-outbox': function () { window.open('/api/integrations/outbox?status=approved', '_blank'); },
+  'open-outbox': function () { window.open('/api/engine/integrations/outbox?status=approved', '_blank'); },
   'reset-demo': async function (el) {
     if (!confirm('Reset all demo data? Enrichment, drafts and conversations will be lost.')) return;
     await withBusy(el, 'Resetting…', async function () {
-      await api('/api/reset-demo', 'POST');
+      await api('/api/engine/reset-demo', 'POST');
       state.job = null; state.buyersLoaded = false; state.company = null;
       toast('Demo data reset');
       await loadSettings();
@@ -2348,7 +2373,7 @@ const ACTIONS = {
 async function buyerMessageAction(el, action, okMsg) {
   const id = el.dataset.id;
   await withBusy(el, '…', async function () {
-    const r = await api('/api/buyer-messages/' + encodeURIComponent(id) + '/' + action, 'POST');
+    const r = await api('/api/engine/buyer-messages/' + encodeURIComponent(id) + '/' + action, 'POST');
     const m = r && r.message ? r.message : r;
     (state.buyers || []).forEach(function (b) { const i = (b.messages || []).findIndex(function (x) { return x.id === id; }); if (i >= 0) b.messages[i] = m; });
     if (r && r.mailto) window.open(r.mailto, '_blank');
@@ -2364,8 +2389,8 @@ const FORMS = {
     const body = { thesis_text: String(fd.get('thesis_text') || '').trim() || THESIS_EXAMPLE, buyer_name: String(fd.get('buyer_name') || '').trim(), buyer_type: fd.get('buyer_type'), countries: fd.getAll('countries') };
     bsStartStepper(); drawBuyside();
     try {
-      const m = await api('/api/buyside/mandates', 'POST', body);
-      bs.current = m; bs.list = await api('/api/buyside/mandates').catch(function () { return bs.list; });
+      const m = await api('/api/engine/buyside/mandates', 'POST', body);
+      bs.current = m; bs.list = await api('/api/engine/buyside/mandates').catch(function () { return bs.list; });
       toast((m.stats ? m.stats.targets : 0) + ' targets found, ' + (m.stats ? m.stats.scored_70 : 0) + ' score 70+');
     } catch (e) { toast(e.message, 'error'); }
     finally { bsStopStepper(); if (state.view === 'buyside') drawBuyside(); }
@@ -2374,7 +2399,7 @@ const FORMS = {
     const csv = String(fd.get('csv') || '').trim();
     if (!csv) { toast('Paste CSV text first', 'error'); return; }
     await withBusy(submitBtn, 'Importing…', async function () {
-      const res = await api('/api/companies/import', 'POST', { csv: csv });
+      const res = await api('/api/engine/companies/import', 'POST', { csv: csv });
       closeModal();
       toast('Imported ' + plural(res.imported != null ? res.imported : (res.companies || []).length, 'prospect'));
       renderProspects();
@@ -2384,7 +2409,7 @@ const FORMS = {
     const body = prospectFromForm(fd);
     if (!body.name) { toast('Company name is required', 'error'); return; }
     await withBusy(submitBtn, 'Adding…', async function () {
-      const c = await api('/api/companies', 'POST', body);
+      const c = await api('/api/engine/companies', 'POST', body);
       closeModal();
       toast('Added ' + c.name);
       location.hash = '#/company/' + c.id;
@@ -2395,7 +2420,7 @@ const FORMS = {
     const text = String(fd.get('text') || '').trim();
     if (!c || !text) { toast('Paste the owner reply first', 'error'); return; }
     state.tab = 'conversation';
-    await companyAction('reply', function () { return api('/api/companies/' + encodeURIComponent(c.id) + '/replies', 'POST', { text: text, channel: fd.get('channel') || 'email' }); },
+    await companyAction('reply', function () { return api('/api/engine/companies/' + encodeURIComponent(c.id) + '/replies', 'POST', { text: text, channel: fd.get('channel') || 'email' }); },
       function (r) {
         const last = r && (r.conversation || []).filter(function (e) { return e.direction === 'inbound' && e.triage; }).pop();
         return 'Reply triaged' + (last ? ' — intent: ' + humanizeKey(last.triage.intent) + ', stage → ' + stageLabel(r.stage) : '');
@@ -2405,7 +2430,7 @@ const FORMS = {
     const body = buyerFromForm(fd);
     if (!body.name) { toast('Buyer name is required', 'error'); return; }
     await withBusy(submitBtn, 'Adding…', async function () {
-      const b = await api('/api/buyers', 'POST', body);
+      const b = await api('/api/engine/buyers', 'POST', body);
       state.buyers.push(b);
       closeModal();
       toast('Buyer added');
@@ -2416,7 +2441,7 @@ const FORMS = {
     const id = fd.get('id');
     const body = buyerFromForm(fd);
     await withBusy(submitBtn, 'Saving…', async function () {
-      const b = await api('/api/buyers/' + encodeURIComponent(id), 'PUT', body);
+      const b = await api('/api/engine/buyers/' + encodeURIComponent(id), 'PUT', body);
       const i = state.buyers.findIndex(function (x) { return x.id === id; });
       if (i >= 0) state.buyers[i] = b;
       closeModal();
@@ -2427,7 +2452,7 @@ const FORMS = {
   'settings': async function (form, fd, submitBtn) {
     const body = settingsFromForm(fd);
     await withBusy(submitBtn, 'Saving…', async function () {
-      state.settings = await api('/api/settings', 'PUT', body);
+      state.settings = await api('/api/engine/settings', 'PUT', body);
       updateBanner();
       toast('Settings saved');
       drawSettings();
@@ -2442,7 +2467,7 @@ const CHANGES = {
     if (!c) return;
     el.disabled = true;
     try {
-      const updated = await api('/api/companies/' + encodeURIComponent(c.id), 'PUT', { advisor_id: el.value });
+      const updated = await api('/api/engine/companies/' + encodeURIComponent(c.id), 'PUT', { advisor_id: el.value });
       setCompany(updated);
       const a = advisorOf(updated);
       toast((a ? a.name : 'The advisor') + ' now owns this prospect. Redraft the outreach to have it signed by them.');
@@ -2460,7 +2485,7 @@ const CHANGES = {
     const stage = el.value;
     el.disabled = true;
     try {
-      const updated = await api('/api/companies/' + encodeURIComponent(c.id) + '/stage', 'POST', { stage: stage });
+      const updated = await api('/api/engine/companies/' + encodeURIComponent(c.id) + '/stage', 'POST', { stage: stage });
       setCompany(updated);
       toast('Stage set to ' + stageLabel(updated.stage || stage));
     } catch (e) { toast(e.message, 'error'); }
@@ -2470,7 +2495,7 @@ const CHANGES = {
     const id = el.dataset.id;
     const active = el.checked;
     try {
-      const b = await api('/api/buyers/' + encodeURIComponent(id), 'PUT', { active: active });
+      const b = await api('/api/engine/buyers/' + encodeURIComponent(id), 'PUT', { active: active });
       const i = state.buyers.findIndex(function (x) { return x.id === id; });
       if (i >= 0) state.buyers[i] = b;
       toast(b.name + (b.active !== false ? ' activated' : ' deactivated'));

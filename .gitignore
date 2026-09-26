@@ -3,6 +3,9 @@ node_modules/
 # runtime state; holds the API key pasted into Settings. DATA_DIR can point anywhere (e.g. data-test/), so match by name
 db.json
 db.json.tmp
+# copies of db.json hold the same keys: db.backup.json, db.backup-before-real-only.json, seed.fictional.backup.json
+db.*.json
+*backup*.json
 # third-party reference clone (contains a leaked API key); the useful parts are ported to server/research
 scraper/
 # reference clone of a separate project (its own git repo); the useful parts are ported to server/
@@ -10,3 +13,6 @@ email-io/
 # organiser's challenge brief (third-party document with contact details) and scratch file; not part of the app
 DESCRIPTION.docx
 TASK.txt
+# teammates' branches cloned for the merge (nested git repos; merge by hand, do not commit)
+amir/
+son/

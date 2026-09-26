@@ -1,0 +1,41 @@
+company_id,company_name,country,website,business_id,sector,founded_year,revenue_eur,ebitda_eur,employees,ownership_type,owner_name,ceo_name,data_origin
+1,Nordic Cloud Oy,FI,,,B2B SaaS & Digital Services,2009,14500000,3600000,85,founder,Mikael Lindström,Mikael Lindström,illustrative
+2,Bavarian Logistics IT GmbH,DE,,,Software & Technical wholesale,1996,31000000,5200000,160,founder,Stefan Weber,Stefan Weber,illustrative
+3,Savonia Solutions AB,SE,,,B2B SaaS & Digital Services,2012,11800000,3100000,64,founder,Elina Virtanen,Elina Virtanen,illustrative
+4,Kivikko Rakennus Oy,FI,,,Industrial construction,1984,62000000,6400000,240,family,Kari Kivikko,Jussi Kivikko,illustrative
+5,Pohjan Kierrätys Oy,FI,,,Circular economy / Waste logistics,1991,48000000,9100000,210,family,Seppo Laaksonen,Seppo Laaksonen,illustrative
+6,Västkust Automation AB,SE,,,Manufacturing & Industrial Automation,1988,54000000,7300000,230,founder,Lars Engström,Anna Berg,illustrative
+7,Fjordline Data AS,NO,,,B2B SaaS & Digital Services,2014,9200000,2400000,48,pe,,Ingrid Solberg,illustrative
+8,Jyllands Genbrug ApS,DK,,,Circular economy / Waste logistics,1979,39000000,8200000,175,family,Henrik Madsen,Mette Madsen,illustrative
+9,Tampere Machinery Oy,FI,,,Manufacturing & Industrial Automation,1975,71000000,8800000,310,family,Pertti Aalto,Pertti Aalto,illustrative
+10,Alpenstahl Bau GmbH,AT,,,Industrial construction,1982,58000000,5600000,260,family,Josef Huber,Josef Huber,illustrative
+11,Rhein Software Handel GmbH,DE,,,Software & Technical wholesale,2001,42000000,6100000,120,founder,Thomas Krüger,Thomas Krüger,illustrative
+12,Helvetia GreenTech AG,CH,,,Sustainable Tech & Software,2011,26000000,4900000,95,founder,Lukas Meier,Lukas Meier,illustrative
+13,Oulu Sensorik Oy,FI,,,Sustainable Tech & Software,2010,17500000,3800000,72,founder,Aino Heikkinen,Aino Heikkinen,illustrative
+14,Mälardalen Bygg AB,SE,,,Industrial construction,1993,47000000,4700000,190,founder,Per Lindqvist,Per Lindqvist,illustrative
+15,Bergen Marine Tech AS,NO,,,Manufacturing & Industrial Automation,2003,33000000,5400000,140,pe,,Erik Haugen,illustrative
+16,Lapin Jätehuolto Oy,FI,,,Circular economy / Waste logistics,1998,22000000,4300000,110,founder,Markku Rantanen,Markku Rantanen,illustrative
+17,Sachsen Prozesstechnik GmbH,DE,,,Manufacturing & Industrial Automation,1992,64000000,9600000,280,family,Klaus Richter,Sabine Richter,illustrative
+18,Kalmar Payroll Cloud AB,SE,,,B2B SaaS & Digital Services,2015,8400000,2100000,41,founder,Johan Nyberg,Johan Nyberg,illustrative
+19,Turku Tekninen Tukku Oy,FI,,,Software & Technical wholesale,1987,36000000,4800000,98,family,Raimo Salonen,Raimo Salonen,illustrative
+20,Aarhus Energy Software ApS,DK,,,Sustainable Tech & Software,2013,15000000,3300000,66,pe,,Sofie Nielsen,illustrative
+21,Tirol Holzbau GmbH,AT,,,Industrial construction,1971,29000000,2900000,150,family,Franz Gruber,Franz Gruber,illustrative
+22,Espoo Field Service Oy,FI,,,B2B SaaS & Digital Services,2008,12600000,3400000,70,founder,Tuomas Koskinen,Tuomas Koskinen,illustrative
+23,Göteborg Återvinning AB,SE,,,Circular economy / Waste logistics,1990,57000000,11200000,240,family,Gunnar Holm,Karin Holm,illustrative
+24,Zürich Automation Systems AG,CH,,,Manufacturing & Industrial Automation,1999,44000000,6900000,170,founder,Beat Keller,Beat Keller,illustrative
+25,Vaasa Grid Solutions Oy,FI,,,Sustainable Tech & Software,2006,24000000,5100000,105,founder,Juha Mäkinen,Juha Mäkinen,illustrative
+26,Oslo Facility Services AS,NO,,,Healthcare & Facility services,1994,38000000,3200000,420,family,Kjell Andersen,Kjell Andersen,illustrative
+27,Hamburg Hafen Logistik GmbH,DE,,,Circular economy / Waste logistics,1986,51000000,7700000,230,family,Dieter Schulz,Dieter Schulz,illustrative
+28,Kuopio Food Oy,FI,,,Food & Beverage,1981,33000000,2600000,160,family,Leena Hyvönen,Leena Hyvönen,illustrative
+29,Linköping Test Labs AB,SE,,,Manufacturing & Industrial Automation,2005,19000000,3500000,88,founder,Magnus Eriksson,Magnus Eriksson,illustrative
+30,Wien Dental Group GmbH,AT,,,Healthcare & Facility services,2002,27000000,4100000,210,pe,,Katharina Wolf,illustrative
+31,Joensuu Timber Tech Oy,FI,,,Industrial construction,1978,41000000,5300000,175,family,Heikki Turunen,Heikki Turunen,illustrative
+32,Copenhagen Compliance SaaS ApS,DK,,,B2B SaaS & Digital Services,2016,7600000,1900000,36,founder,Rasmus Jensen,Rasmus Jensen,illustrative
+33,Matrix42 Oy,FI,https://www.matrix42.com,1509667-4,B2B SaaS & Digital Services,,,,,,,,real
+34,Futurice Oy,FI,https://www.futurice.com,1623507-4,B2B SaaS & Digital Services,,,,,,,,real
+35,Nitor Group Oy,FI,https://www.nitor.com,2443018-7,B2B SaaS & Digital Services,,,,,,,,real
+36,Eficode Oy,FI,https://www.eficode.com,1971814-3,B2B SaaS & Digital Services,,,,,,,,real
+37,Solita Oy,FI,https://www.solita.fi,2905040-7,B2B SaaS & Digital Services,,,,,,,,real
+38,Lassila & Tikanoja Oyj,FI,https://www.lt.fi,3555336-9,Circular economy / Waste logistics,,,,,listed,,,real
+39,Vincit Oyj,FI,https://www.vincit.com,2113034-9,B2B SaaS & Digital Services,,,,,listed,,,real
+40,Siili Solutions Oyj,FI,https://www.siili.com,1979903-5,B2B SaaS & Digital Services,,,,,listed,,,real

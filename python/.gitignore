@@ -1,0 +1,11 @@
+# Python runtime output for both folders (see docs/python-setup.md)
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+.env
+# Son's profiler saves profiles here when run by hand; the Node bridge uses a temp folder instead
+company-scraper/output/
+# Amir's engine appends every screen, match and draft here
+buyer-engine/data/dialogues.jsonl

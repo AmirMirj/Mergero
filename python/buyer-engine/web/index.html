@@ -1,0 +1,2078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mergero | Mandate Origination Desk</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .glass-panel { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .drawer { transition: transform 0.25s ease; }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .demo-focus { box-shadow: 0 0 0 2px rgb(52 211 153); border-radius: 1rem; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white">
+
+    <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="h-9 w-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <i data-lucide="layers" class="h-5 w-5 text-slate-950 stroke-[2.5]"></i>
+                </div>
+                <div>
+                    <div class="text-lg font-bold tracking-tight text-white">Mergero Origination Desk</div>
+                    <div class="text-xs text-slate-400">Find owners at the right moment, contact them at scale, turn replies into mandates.</div>
+                </div>
+            </div>
+            <button onclick="startDemo()" class="hidden sm:flex items-center gap-1.5 text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg cursor-pointer whitespace-nowrap">
+                <i data-lucide="play-circle" class="h-4 w-4"></i>Watch the demo</button>
+            <span id="llmBadge" class="hidden md:inline text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-md bg-slate-800 text-slate-400" title="Set OPENAI_API_KEY to let an LLM polish hypotheses, messages and reply classification">Templates</span>
+            <div class="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1">
+                <button id="tabProspects" onclick="setTab('prospects')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer">Pipeline</button>
+                <button id="tabData" onclick="setTab('data')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer">Data</button>
+                <div class="relative">
+                    <button id="tabTools" onclick="toggleTools(event)" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer">Tools ▾</button>
+                    <div id="toolsMenu" class="menu hidden absolute right-0 mt-2 w-60 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1 z-40">
+                        <button onclick="setTab('buy')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer">
+                            <div class="text-sm text-white font-semibold">Screen a company for buyers</div>
+                            <div class="text-[11px] text-slate-500">Paste a website, rank buyer mandates</div></button>
+                        <button onclick="setTab('sell')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer">
+                            <div class="text-sm text-white font-semibold">Sell-side owners</div>
+                            <div class="text-[11px] text-slate-500">Quick owner warm-ups</div></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-6 space-y-6">
+
+        <!-- Metrics -->
+        <div id="metricsRow" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="glass-panel rounded-xl px-4 py-3" title="Buyers loaded from data/buyers_criteria.csv">
+                <div class="text-slate-400 text-[11px] font-semibold uppercase tracking-wider">Buyer mandates</div>
+                <div class="text-2xl font-extrabold text-white" id="metricBuyers">0</div>
+            </div>
+            <div class="glass-panel rounded-xl px-4 py-3" title="Company-to-buyer matches in the pipeline">
+                <div class="text-slate-400 text-[11px] font-semibold uppercase tracking-wider">Matches in pipeline</div>
+                <div class="text-2xl font-extrabold text-white" id="metricTotal">0</div>
+            </div>
+            <div class="glass-panel rounded-xl px-4 py-3" title="Matches with an owner warm-up drafted or later">
+                <div class="text-slate-400 text-[11px] font-semibold uppercase tracking-wider">Owner outreach drafted</div>
+                <div class="text-2xl font-extrabold text-emerald-400" id="metricOutreach">0</div>
+            </div>
+            <div class="glass-panel rounded-xl px-4 py-3" title="Every screen, match and draft is logged to data/dialogues.jsonl">
+                <div class="text-slate-400 text-[11px] font-semibold uppercase tracking-wider">Dialogues logged</div>
+                <div class="text-2xl font-extrabold text-teal-400" id="metricDialogues">0</div>
+            </div>
+        </div>
+
+        <!-- ===================== DATA SOURCES ===================== -->
+        <section id="dataPanel" class="hidden space-y-6">
+            <div class="glass-panel rounded-2xl p-5 space-y-4">
+                <div>
+                    <h2 class="text-base font-bold text-white">Data sources</h2>
+                    <p class="text-xs text-slate-400 mt-1">Everything the desk knows about a company comes from these sources. Each field is tagged with where it came from.</p>
+                </div>
+                <div id="sourceCards" class="grid grid-cols-2 lg:grid-cols-5 gap-3"></div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Company universe <span id="companyCount" class="text-slate-500 font-medium"></span></h2>
+                        <p class="text-xs text-slate-400 mt-1">Privately held Nordic and DACH companies with their latest signals. Click a company to see its full record, enrich it live or screen it against buyers.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <input type="text" id="companySearch" oninput="renderCompanies()" placeholder="Search..." class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 w-32">
+                        <select id="countryFilter" onchange="loadCompanies()" class="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                            <option value="">All countries</option>
+                        </select>
+                        <select id="signalFilter" onchange="loadCompanies()" class="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                            <option value="">All signals</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-slate-500 text-[11px] uppercase tracking-wider">
+                                <th class="py-2 pr-4">Company</th>
+                                <th class="py-2 pr-4">Country</th>
+                                <th class="py-2 pr-4">Sector</th>
+                                <th class="py-2 pr-4">EBITDA</th>
+                                <th class="py-2 pr-4">Ownership</th>
+                                <th class="py-2">Signals</th>
+                            </tr>
+                        </thead>
+                        <tbody id="companyBody" class="divide-y divide-slate-800/60 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================== PROSPECTS ===================== -->
+        <section id="prospectsPanel" class="hidden space-y-6">
+            <div id="howItWorks" class="hidden glass-panel rounded-2xl p-4 flex items-start gap-4 border-emerald-500/30">
+                <i data-lucide="compass" class="h-5 w-5 text-emerald-400 shrink-0 mt-0.5"></i>
+                <div class="flex-1 text-xs text-slate-300 space-y-1">
+                    <div class="text-sm font-bold text-white">How it works</div>
+                    <div><span class="text-emerald-300 font-semibold">1.</span> We rank every company by how likely it is to need an M&amp;A advisor right now. Hot ones are at the top.</div>
+                    <div><span class="text-emerald-300 font-semibold">2.</span> Each one is scored against the six buyer mandates (who they buy, where, and at what size). Charts show who fits and whether one buyer stands out.</div>
+                    <div><span class="text-emerald-300 font-semibold">3.</span> The <span class="text-white font-semibold">Today</span> list tells you the one next thing to do for each owner. Click the button.</div>
+                    <div><span class="text-emerald-300 font-semibold">4.</span> Log the owner's reply and we qualify it. Interested owners get a first call with an advisor and, after a few meetings, sign an engagement letter: the mandate.</div>
+                </div>
+                <div class="flex flex-col gap-2 shrink-0">
+                    <button onclick="startDemo()" class="text-[11px] font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-1.5 rounded-lg cursor-pointer">Watch the demo</button>
+                    <button onclick="dismissHowItWorks()" class="text-[11px] text-slate-400 hover:text-white cursor-pointer">Got it</button>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 space-y-5">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="max-w-xl">
+                        <h2 class="text-base font-bold text-white">Mandate origination pipeline</h2>
+                        <p class="text-sm text-slate-400 mt-1 leading-relaxed">From company data to a qualified owner conversation. First call and mandate are simulated.</p>
+                    </div>
+                    <div class="relative">
+                        <button id="refreshBtn" onclick="toggleMenu('refreshMenu', event)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-1.5 rounded-lg text-xs cursor-pointer flex items-center gap-1">
+                            <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>Refresh data ▾</button>
+                        <div id="refreshMenu" class="menu hidden absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1 z-40">
+                            <button onclick="runIngest(false)" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer">
+                                <div class="text-sm text-white font-semibold">Quick refresh</div>
+                                <div class="text-[11px] text-slate-500">Re-read the datasets and re-score everyone</div></button>
+                            <button onclick="runIngest(true)" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer">
+                                <div class="text-sm text-white font-semibold">Refresh with live registry</div>
+                                <div class="text-[11px] text-slate-500">Also check the real companies in the Finnish registry and their websites (about 10s)</div></button>
+                        </div>
+                    </div>
+                </div>
+                <div id="mvpStepper" class="space-y-5"></div>
+                <div id="ingestStats" class="text-xs text-slate-500">Using a quick read of the datasets.</div>
+            </div>
+            <div id="bookMatchStats"></div>
+
+            <div class="glass-panel rounded-2xl p-5 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Today</h2>
+                        <p class="text-xs text-slate-400 mt-1">The one next thing to do for each owner. Click a button to do it.</p>
+                    </div>
+                    <span id="todayCount" class="text-[11px] text-slate-500"></span>
+                </div>
+                <div id="todayQueue" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3"></div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">All prospects <span id="prospectCount" class="text-slate-500 font-medium"></span></h2>
+                        <p class="text-xs text-slate-400 mt-1">Most likely to need an advisor first. Click a row to see why, or use its button.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <input type="text" id="prospectSearch" oninput="renderProspects()" placeholder="Search company…" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 w-36">
+                        <select id="tierFilter" onchange="loadProspects()" class="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                            <option value="">All</option><option value="A">Hot</option><option value="B">Warm</option><option value="C">Watch</option>
+                        </select>
+                        <select id="sideFilter" onchange="loadProspects()" class="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                            <option value="">Sell + buy side</option><option value="sell">Sell-side</option><option value="buy">Buy-side</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="prospectBody" class="divide-y divide-slate-800/70"></div>
+            </div>
+        </section>
+
+        <!-- ===================== BUY-SIDE ===================== -->
+        <section id="buyPanel" class="hidden space-y-6">
+
+            <!-- Guided steps -->
+            <ol id="steps" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></ol>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- Step 1-2: Screen + rank -->
+                <div class="lg:col-span-5 space-y-4">
+                    <div class="glass-panel rounded-2xl p-5 space-y-4">
+                        <div>
+                            <h2 class="text-base font-bold text-white">Screen a company</h2>
+                            <p class="text-xs text-slate-400 mt-1">Paste a website or type a company name. We read the public site and rank every buyer mandate against it.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="screenInput" placeholder="https://www.company.com or company name"
+                                class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                            <button id="screenBtn" onclick="runScreen()" class="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-sm cursor-pointer flex items-center gap-2 shrink-0">
+                                <i data-lucide="search" class="h-4 w-4"></i><span>Screen</span>
+                            </button>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                            <span class="text-slate-500">Try:</span>
+                            <button onclick="tryExample('https://www.visma.com')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">Visma (software)</button>
+                            <button onclick="tryExample('https://www.efecte.com')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">Efecte / Matrix42 (SaaS)</button>
+                            <button onclick="tryExample('https://www.lassila-tikanoja.fi/en/')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">L&amp;T (waste)</button>
+                        </div>
+                    </div>
+
+                    <div id="screenResult" class="hidden space-y-4"></div>
+                </div>
+
+                <!-- Step 3-4: Pipeline -->
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="glass-panel rounded-2xl p-5 space-y-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 class="text-base font-bold text-white">Pipeline</h2>
+                                <p class="text-xs text-slate-400 mt-1">Click a row to draft outreach and move it toward a mandate.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="text" id="searchInput" oninput="renderPipeline()" placeholder="Filter..." class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 w-32">
+                                <button onclick="openAddModal()" class="text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1">
+                                    <i data-lucide="plus" class="h-3.5 w-3.5"></i>Add manually
+                                </button>
+                            </div>
+                        </div>
+                        <div id="pipelineBody" class="divide-y divide-slate-800/70"></div>
+                    </div>
+
+                    <details class="glass-panel rounded-2xl p-5 group" id="buyerBook">
+                        <summary class="cursor-pointer list-none flex items-center justify-between">
+                            <div>
+                                <h2 class="text-base font-bold text-white">Buyer mandates <span id="buyerCount" class="text-slate-500 font-medium"></span></h2>
+                                <p class="text-xs text-slate-400 mt-1">What each fund is looking for. Every screen is scored against these criteria.</p>
+                            </div>
+                            <i data-lucide="chevron-down" class="h-4 w-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+                        </summary>
+                        <div class="overflow-x-auto mt-4">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="border-b border-slate-800 text-slate-500 text-[11px] uppercase tracking-wider">
+                                        <th class="py-2 pr-4">Buyer</th>
+                                        <th class="py-2 pr-4">Looking for</th>
+                                        <th class="py-2 pr-4">EBITDA</th>
+                                        <th class="py-2">Geography</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="buyerTableBody" class="divide-y divide-slate-800/60 text-sm"></tbody>
+                            </table>
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================== SELL-SIDE ===================== -->
+        <section id="sellPanel" class="hidden space-y-6">
+            <div class="glass-panel rounded-2xl p-5">
+                <h2 class="text-base font-bold text-white">Sell-side owners</h2>
+                <p class="text-xs text-slate-400 mt-1">Owners who may be open to a sale or growth partner. Draft a personal, no-pressure warm-up in the right tone for Nordics or DACH.
+                    To add a company here, screen it on the Buy-side tab and choose <span class="text-slate-200">Add as sell-side owner</span>.</p>
+            </div>
+            <div class="glass-panel rounded-2xl p-5">
+                <div id="ownerBody" class="divide-y divide-slate-800/70"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ===================== DRAWER ===================== -->
+    <div id="drawerBackdrop" onclick="closeDrawer()" class="fixed inset-0 bg-slate-950/60 hidden z-40"></div>
+    <aside id="drawer" class="drawer fixed top-0 right-0 h-full w-full max-w-xl bg-slate-900 border-l border-slate-800 z-50 translate-x-full overflow-y-auto">
+        <div id="drawerContent" class="p-6 space-y-6"></div>
+    </aside>
+
+    <!-- Manual add -->
+    <div id="addModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="glass-panel rounded-2xl max-w-md w-full p-6 space-y-5 border border-slate-700">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white">Add a match manually</h3>
+                <button onclick="closeAddModal()" class="text-slate-400 hover:text-white cursor-pointer"><i data-lucide="x" class="h-5 w-5"></i></button>
+            </div>
+            <p class="text-xs text-slate-400">Use this when you already know the company. Screening its website instead gives a better fit score.</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Buyer</label>
+                    <select id="newBuyer" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Target company</label>
+                    <input type="text" id="newTarget" placeholder="e.g. Nordic Tech Oy" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeAddModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:bg-slate-800 cursor-pointer">Cancel</button>
+                <button onclick="saveNewDeal()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm cursor-pointer">Add to pipeline</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toasts" class="fixed top-16 left-1/2 -translate-x-1/2 z-[60] space-y-2"></div>
+    <div id="demoBar" class="hidden fixed bottom-4 left-4 z-[55] w-[min(26rem,calc(100%-2rem))] bg-slate-100 text-slate-900 rounded-2xl shadow-2xl p-4 space-y-2"></div>
+
+    <script>
+        const STAGES = ["Screened", "Owner identified", "Warm-up drafted", "Outreach ready", "Mandate conversation"];
+        const STAGE_HELP = {
+            "Screened": "Company screened and matched to a buyer.",
+            "Owner identified": "You know who to contact at the company.",
+            "Warm-up drafted": "A personal message to the owner is written.",
+            "Outreach ready": "Approved and ready to send.",
+            "Mandate conversation": "The owner is talking to us. This is the mandate."
+        };
+
+        let buyers = [];
+        let deals = [];
+        let owners = [];
+        let lastProfile = null;
+        let lastMatches = [];
+        let drawer = null;
+        const drafts = {};
+
+        // ---------- helpers ----------
+        function esc(text) {
+            return String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        }
+        async function api(path, options = {}) {
+            const res = await fetch(path, {
+                headers: { "Content-Type": "application/json" },
+                ...options,
+                body: options.body ? JSON.stringify(options.body) : undefined
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.status === "error") throw new Error(data.message || `Request failed (${res.status})`);
+            return data;
+        }
+        function toast(message, tone = "ok") {
+            const el = document.createElement("div");
+            const colors = tone === "error" ? "bg-rose-500 text-white" : "bg-slate-100 text-slate-900";
+            el.className = `${colors} text-sm font-semibold px-4 py-2 rounded-xl shadow-2xl`;
+            el.textContent = message;
+            document.getElementById("toasts").appendChild(el);
+            setTimeout(() => el.remove(), 2600);
+        }
+        function fit(score) {
+            if (score == null) return { label: "Not scored", text: "text-slate-400", bar: "bg-slate-600", chip: "bg-slate-800 text-slate-300" };
+            if (score >= 75) return { label: "Strong fit", text: "text-emerald-400", bar: "bg-emerald-500", chip: "bg-emerald-500/15 text-emerald-300" };
+            if (score >= 55) return { label: "Possible fit", text: "text-amber-300", bar: "bg-amber-400", chip: "bg-amber-400/15 text-amber-200" };
+            return { label: "Weak fit", text: "text-rose-300", bar: "bg-rose-400", chip: "bg-rose-500/15 text-rose-200" };
+        }
+        function band(b) {
+            return `€${(b.min_ebitda_eur / 1e6).toFixed(0)}–${(b.max_ebitda_eur / 1e6).toFixed(0)}M`;
+        }
+        function stageIndex(stage) { return Math.max(0, STAGES.indexOf(stage)); }
+        function stageDots(stage) {
+            const i = stageIndex(stage);
+            return `<div class="flex items-center gap-1">${STAGES.map((_, n) =>
+                `<span class="h-1.5 w-5 rounded-full ${n <= i ? "bg-emerald-400" : "bg-slate-700"}"></span>`).join("")}</div>`;
+        }
+        function icons() { lucide.createIcons(); }
+
+        // ---------- tabs ----------
+        function setTab(tab) {
+            const on = "whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer bg-emerald-500 text-slate-950";
+            const off = "whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer text-slate-300 hover:text-white";
+            for (const [key, panel] of [["data", "dataPanel"], ["prospects", "prospectsPanel"], ["buy", "buyPanel"], ["sell", "sellPanel"]]) {
+                document.getElementById(panel).classList.toggle("hidden", tab !== key);
+            }
+            document.getElementById("tabProspects").className = tab === "prospects" ? on : off;
+            document.getElementById("tabData").className = tab === "data" ? on : off;
+            document.getElementById("tabTools").className = tab === "buy" || tab === "sell" ? on : off;
+            closeMenus();
+            document.getElementById("metricsRow").classList.toggle("hidden", tab === "prospects" || tab === "data");
+            document.getElementById("howItWorks").classList.toggle("hidden", tab !== "prospects" || localStorage.getItem("howItWorksSeen") === "1");
+            if (tab === "sell") loadOwners();
+            if (tab === "data") loadDataSources();
+            if (tab === "prospects") loadProspectsTab();
+        }
+
+        function closeMenus() { document.querySelectorAll(".menu").forEach((m) => m.classList.add("hidden")); }
+        function toggleMenu(id, event) {
+            event.stopPropagation();
+            const menu = document.getElementById(id);
+            const wasHidden = menu.classList.contains("hidden");
+            closeMenus();
+            menu.classList.toggle("hidden", !wasHidden);
+        }
+        function toggleTools(event) { toggleMenu("toolsMenu", event); }
+        document.addEventListener("click", closeMenus);
+        function dismissHowItWorks() {
+            localStorage.setItem("howItWorksSeen", "1");
+            document.getElementById("howItWorks").classList.add("hidden");
+        }
+
+        // ---------- MVP pipeline ----------
+        const CRM_STAGES = ["Prospect", "Contacted", "Replied", "Qualified", "Advisor handoff", "Mandate"];
+        const TIER_CHIP = { A: "bg-emerald-500 text-slate-950", B: "bg-amber-400 text-slate-950", C: "bg-slate-700 text-slate-200" };
+        const TIER_LABEL = { A: "Hot", B: "Warm", C: "Watch" };
+        const CATEGORY_TONE = {
+            interested_now: "text-emerald-300", needs_advisor: "text-sky-300", interested_later: "text-amber-200",
+            not_interested: "text-rose-300", unsubscribe: "text-rose-300",
+        };
+        const ACTION_STYLE = {
+            plan: "bg-teal-500 hover:bg-teal-400 text-slate-950",
+            follow_up: "bg-amber-400 hover:bg-amber-300 text-slate-950",
+            send: "bg-emerald-500 hover:bg-emerald-400 text-slate-950",
+            log_reply: "bg-slate-100 hover:bg-white text-slate-900",
+            handoff: "bg-sky-500 hover:bg-sky-400 text-slate-950",
+            mandate: "bg-emerald-500 hover:bg-emerald-400 text-slate-950",
+        };
+        const ACTION_SHORT = { plan: "Plan", follow_up: "Follow up", send: "Send", log_reply: "Log reply", handoff: "Book call", mandate: "Signed" };
+        const QUEUE = [
+            { title: "Start outreach", icon: "sparkles", keys: ["plan"], filter: (p) => p.tier !== "C", limit: 5, empty: "No hot or warm owner left to contact." },
+            { title: "Messages to send", icon: "send", keys: ["send"], empty: "No message is due." },
+            { title: "Replies to log", icon: "inbox", keys: ["log_reply"], empty: "Nobody is waiting for a reply." },
+            { title: "Follow-ups due", icon: "alarm-clock", keys: ["follow_up"], empty: "No follow-up is due." },
+            { title: "First call and mandate", icon: "handshake", keys: ["handoff", "mandate"], empty: "No qualified owner yet." },
+        ];
+        let prospects = [];
+        let prospectDetail = null;
+        let sampleReplies = [];
+        let drawerStep = null;
+        let demo = null;
+
+        async function loadProspectsTab() {
+            if (!buyers.length) {
+                try { await loadBuyers(); } catch (e) { /* buy-side table is optional here */ }
+            }
+            await Promise.all([loadProspects(), loadRuns(), loadStepper()]);
+        }
+
+        function refreshLists() { loadProspects(); loadStepper(); refreshMetrics(); }
+
+        async function loadStepper() {
+            try {
+                const s = (await api("/api/pipeline-summary")).data;
+                const chip = (cls, text) => `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${cls}">${text}</span>`;
+                const steps = [
+                    { n: 1, title: "Data", value: s.data.companies, hint: "companies in the book", extra: `${s.data.signals} signals loaded`, go: "setTab('data')" },
+                    { n: 2, title: "Signals", value: s.signals.with_triggers, hint: "have an M&A trigger", extra: "events that make an owner worth calling", go: "focusProspects('', '')" },
+                    { n: 3, title: "Scoring", value: s.scoring.A + s.scoring.B + s.scoring.C, hint: "companies ranked", extra: `${chip("bg-emerald-500 text-slate-950", `${s.scoring.A} hot`)} ${chip("bg-amber-400 text-slate-950", `${s.scoring.B} warm`)} ${chip("bg-slate-700 text-slate-200", `${s.scoring.C} watch`)}`, go: "focusProspects('A', '')" },
+                    { n: 4, title: "Hypothesis", value: s.hypothesis.sell + s.hypothesis.buy, hint: "AI angles drafted", extra: `${s.hypothesis.sell} sell-side · ${s.hypothesis.buy} buy-side`, go: "focusProspects('', 'sell')" },
+                    { n: 5, title: "Outreach", value: s.outreach.sequences, hint: "sequences started", extra: `${s.outreach.sent} messages sent`, go: "focusProspects('', '')", waiting: !s.outreach.sequences },
+                    { n: 6, title: "Qualified", value: s.qualification.qualified, hint: "owners ready to talk", extra: `${s.qualification.potential_mandates} potential mandates`, go: "focusProspects('', '')", waiting: !s.qualification.qualified },
+                ];
+                const done = (st) => Number(st.value) > 0;
+                const card = (st) => `
+                    <button onclick="${st.go}" class="text-left bg-slate-800/40 hover:bg-slate-800 rounded-2xl px-4 py-4 border ${done(st) ? "border-emerald-500/35" : "border-slate-800"} cursor-pointer">
+                        <div class="flex items-center gap-2">
+                            <span class="h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-bold ${done(st) ? "bg-emerald-500 text-slate-950" : "bg-slate-700 text-slate-300"}">${st.n}</span>
+                            <span class="text-xs font-semibold text-slate-200">${st.title}</span>
+                        </div>
+                        <div class="text-2xl font-extrabold ${st.waiting ? "text-slate-500" : "text-white"} mt-3">${st.value}</div>
+                        <div class="text-[13px] text-slate-400 mt-1">${st.hint}</div>
+                        <div class="text-xs text-slate-500 mt-3 leading-relaxed">${st.extra}</div>
+                    </button>`;
+                const ready = steps.slice(0, 4).map(card).join("");
+                const next = steps.slice(4).map(card).join("") + `
+                    <div class="rounded-2xl px-4 py-4 border border-dashed ${s.handoff.mandates ? "border-emerald-500/40" : "border-slate-600"}">
+                        <div class="flex items-center gap-2">
+                            <span class="h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-bold ${s.handoff.mandates || s.handoff.handed_off ? "bg-emerald-500 text-slate-950" : "bg-slate-700 text-slate-300"}">7</span>
+                            <span class="text-xs font-semibold text-slate-200">First call → mandate</span>
+                        </div>
+                        <div class="flex items-end gap-4 mt-3">
+                            <div>
+                                <div class="text-2xl font-extrabold ${s.handoff.handed_off ? "text-white" : "text-slate-500"}">${s.handoff.handed_off}</div>
+                                <div class="text-[13px] text-slate-400">calls booked</div>
+                            </div>
+                            <div class="text-slate-600 pb-5">→</div>
+                            <div>
+                                <div class="text-2xl font-extrabold ${s.handoff.mandates ? "text-emerald-400" : "text-slate-500"}">${s.handoff.mandates}</div>
+                                <div class="text-[13px] text-slate-400">letters signed</div>
+                            </div>
+                        </div>
+                        <div class="text-xs text-slate-500 mt-3">Simulated in this prototype</div>
+                    </div>`;
+                document.getElementById("mvpStepper").innerHTML = `
+                    <div>
+                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Engine has prepared</div>
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">${ready}</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Still to convert</div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">${next}</div>
+                    </div>`;
+                return s;
+            } catch (e) { return null; }
+        }
+
+        function focusProspects(tier, side) {
+            document.getElementById("tierFilter").value = tier;
+            document.getElementById("sideFilter").value = side;
+            renderProspects();
+            document.getElementById("prospectBody").scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        async function loadProspects() {
+            try {
+                const res = await api("/api/prospects");
+                prospects = res.data || [];
+                const badge = document.getElementById("llmBadge");
+                badge.innerText = res.llm ? "LLM on" : "Templates";
+                badge.className = `hidden md:inline text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-md ${res.llm ? "bg-violet-500/20 text-violet-200" : "bg-slate-800 text-slate-400"}`;
+                renderProspects();
+                renderBookMatchStats();
+                renderToday();
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        function actionButton(p, short = false) {
+            const a = p.next_action;
+            if (!ACTION_STYLE[a.key]) return `<span class="text-[11px] text-slate-500 shrink-0 ${short ? "" : "w-40 text-right"}">${esc(short ? "" : a.label)}</span>`;
+            return `<button onclick="event.stopPropagation(); rowAction(${p.company_id})" title="${esc(a.label)}"
+                class="shrink-0 ${short ? "" : "w-40"} text-[11px] font-bold px-2.5 py-1 rounded-lg cursor-pointer whitespace-nowrap ${ACTION_STYLE[a.key]}">${esc(short ? ACTION_SHORT[a.key] : a.label)}</button>`;
+        }
+
+        function renderBookMatchStats() {
+            const el = document.getElementById("bookMatchStats");
+            if (!el) return;
+            const tops = prospects.map((p) => p.top_buyer).filter((b) => b && b.score != null);
+            el.innerHTML = matchStatsPanel(tops, {
+                title: "Best-buyer fit across the book",
+                subtitle: "Each company scored against the six mandates. This chart is the winner only — the best of six. That is why the left side looks empty.",
+                book: true,
+            });
+        }
+        function renderProspects() {
+            const tier = document.getElementById("tierFilter").value;
+            const side = document.getElementById("sideFilter").value;
+            const query = document.getElementById("prospectSearch").value.trim().toLowerCase();
+            const rows = prospects.filter((p) => (!tier || p.tier === tier) && (!side || p.side === side)
+                && (!query || (p.company_name || "").toLowerCase().includes(query)));
+            document.getElementById("prospectCount").innerText = `(${rows.length})`;
+            document.getElementById("prospectBody").innerHTML = rows.map((p) => {
+                const t = p.top_trigger;
+                return `<div role="button" onclick="openProspect(${p.company_id})" class="w-full text-left py-3 px-2 -mx-2 rounded-lg hover:bg-slate-800/50 flex items-center gap-4 cursor-pointer ${p.closed ? "opacity-50" : ""}">
+                    <span class="w-14 shrink-0 text-center text-[10px] font-extrabold uppercase py-1 rounded-md ${TIER_CHIP[p.tier]}" title="Tier ${p.tier}">${TIER_LABEL[p.tier]}</span>
+                    <div class="w-16 shrink-0">
+                        <div class="text-sm font-bold text-white">${p.score}</div>
+                        <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1"><div class="h-full ${p.tier === "A" ? "bg-emerald-500" : p.tier === "B" ? "bg-amber-400" : "bg-slate-500"}" style="width:${p.score}%"></div></div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-semibold text-white truncate">${esc(p.company_name)} <span class="text-slate-500 font-normal text-xs">${esc(p.country_name)}</span></div>
+                        <div class="text-[11px] text-slate-500 truncate">${esc(p.mandate_type)} · ${esc(p.sector)}</div>
+                    </div>
+                    <div class="hidden lg:block w-52 shrink-0 text-[11px] text-slate-300 truncate">${t ? `${esc(t.label)}${t.date ? ` <span class="text-slate-500">${esc(t.date.slice(0, 7))}</span>` : ""}` : `<span class="text-slate-600">no trigger yet</span>`}${p.top_buyer ? `<div class="text-slate-500 truncate">${esc(p.top_buyer.buyer_name)}${p.top_buyer.verdict ? ` · ${p.top_buyer.verdict} fit` : ""}</div>` : ""}</div>
+                    ${p.mandate_likelihood != null ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${p.mandate_likelihood >= 50 ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"}" title="Mandate likelihood · timing: ${esc(p.timing)}">${p.mandate_likelihood}%</span>` : ""}
+                    <span class="hidden md:inline text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 shrink-0 w-24 text-center">${esc(p.closed ? "Closed" : p.stage_label)}</span>
+                    ${actionButton(p)}
+                </div>`;
+            }).join("") || `<div class="py-6 text-center text-xs text-slate-500">No prospects match these filters.</div>`;
+            icons();
+        }
+
+        function queueItems(group) {
+            return prospects.filter((p) => group.keys.includes(p.next_action.key) && (!group.filter || group.filter(p)));
+        }
+
+        function renderToday() {
+            let total = 0;
+            document.getElementById("todayQueue").innerHTML = QUEUE.map((g) => {
+                const items = queueItems(g);
+                const shown = items.slice(0, g.limit || 6);
+                total += shown.length;
+                return `<div class="bg-slate-800/40 rounded-xl p-3 space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-1.5 text-xs font-semibold text-white"><i data-lucide="${g.icon}" class="h-3.5 w-3.5 text-emerald-400"></i>${g.title}</div>
+                        <span class="text-[10px] font-bold ${items.length ? "text-emerald-300" : "text-slate-600"}">${items.length}</span>
+                    </div>
+                    ${shown.map((p) => `<div class="flex items-center gap-2">
+                        <button onclick="openProspect(${p.company_id})" class="flex-1 min-w-0 text-left text-[11px] text-slate-200 hover:text-white truncate cursor-pointer" title="${esc(p.next_action.label)}">
+                            <span class="inline-block w-1.5 h-1.5 rounded-full mr-1 ${p.tier === "A" ? "bg-emerald-400" : p.tier === "B" ? "bg-amber-400" : "bg-slate-500"}"></span>${esc(p.company_name)}</button>
+                        ${actionButton(p, true)}</div>`).join("") || `<div class="text-[11px] text-slate-500">${g.empty}</div>`}
+                    ${items.length > shown.length ? `<div class="text-[10px] text-slate-500">+${items.length - shown.length} more in the list below</div>` : ""}
+                </div>`;
+            }).join("");
+            document.getElementById("todayCount").innerText = total ? `${total} things to do` : "All caught up";
+            icons();
+        }
+
+        async function rowAction(id) {
+            const p = prospects.find((x) => x.company_id === id);
+            const a = p?.next_action;
+            if (!a) return;
+            try {
+                if (a.key === "plan" || a.key === "follow_up") {
+                    await api(`/api/prospects/${id}/outreach`, { method: "POST" });
+                    toast(`4 messages drafted for ${p.company_name}. Next: send the first one.`);
+                } else if (a.key === "send") {
+                    await api(`/api/prospects/${id}/outreach/${a.message_step}/send`, { method: "POST" });
+                    toast(`Sent to ${p.company_name} (simulated)`);
+                } else {
+                    return openProspect(id);
+                }
+                refreshLists();
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        async function loadRuns() {
+            try {
+                const runs = (await api("/api/ingest/runs")).data;
+                if (!runs.length) return;
+                const r = runs[0];
+                document.getElementById("ingestStats").innerText = `Last refresh: ${r.processed} companies`
+                    + (r.enriched ? `, ${r.enriched} checked live in the registry` : "")
+                    + (r.failed ? `, ${r.failed} unavailable` : "")
+                    + (r.new_signals ? `, ${r.new_signals} new signals` : "") + ` (${r.duration_s}s).`;
+            } catch (e) { /* non-critical */ }
+        }
+
+        async function runIngest(live) {
+            closeMenus();
+            const btn = document.getElementById("refreshBtn");
+            const label = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="h-3.5 w-3.5 spin"></i>${live ? "Checking registry…" : "Refreshing…"}`;
+            icons();
+            try {
+                const r = (await api("/api/ingest", { method: "POST", body: { live } })).data;
+                toast(`Refreshed ${r.processed} companies${live ? `, ${r.enriched} checked live` : ""}`);
+                await loadProspectsTab();
+                refreshMetrics();
+            } catch (e) { toast(e.message, "error"); }
+            finally { btn.disabled = false; btn.innerHTML = label; icons(); }
+        }
+
+        async function openProspect(id, step = null) {
+            if (!drawer || drawer.mode !== "prospect" || drawer.id !== id) {
+                document.getElementById("drawerContent").innerHTML = `<div class="text-sm text-slate-400">Loading…</div>`;
+            }
+            drawer = { mode: "prospect", id };
+            drawerStep = step;
+            openDrawer();
+            try {
+                const [detail, samples] = await Promise.all([api(`/api/prospects/${id}`), api(`/api/prospects/${id}/sample-replies`)]);
+                prospectDetail = detail.data;
+                sampleReplies = samples.data;
+                renderProspectDrawer();
+            } catch (e) { toast(e.message, "error"); closeDrawer(); }
+        }
+
+        function showStep(n) {
+            const open = drawerStep ?? prospectDetail.next_action.step;
+            drawerStep = open === n ? -1 : n;
+            renderProspectDrawer();
+        }
+
+        function buyerParts(buyer) {
+            if (buyer.parts) return buyer.parts;
+            const sector = Math.round(axisValue(buyer, "sector") / 100 * 50);
+            const region = Math.round(axisValue(buyer, "region") / 100 * 20);
+            const size = Math.round(axisValue(buyer, "size") / 100 * 20);
+            return { sector, region, size, verified: Math.max(0, (buyer.score || 0) - sector - region - size) };
+        }
+        function computeMatchStats(buyers) {
+            const scores = (buyers || []).map((b) => b.score).filter((s) => s != null);
+            const n = scores.length;
+            if (!n) return null;
+            const mean = scores.reduce((a, b) => a + b, 0) / n;
+            const ordered = [...scores].sort((a, b) => a - b);
+            const mid = Math.floor(n / 2);
+            const median = n % 2 ? ordered[mid] : (ordered[mid - 1] + ordered[mid]) / 2;
+            const stdev = Math.sqrt(scores.reduce((a, s) => a + (s - mean) ** 2, 0) / n);
+            const strong = scores.filter((s) => s >= 75).length;
+            const possible = scores.filter((s) => s >= 55 && s < 75).length;
+            const best = Math.max(...scores);
+            return {
+                n, best, mean, median, stdev, min: Math.min(...scores), max: best,
+                lift: best - median, strong, possible, weak: n - strong - possible,
+                read: strong === 0 && possible === 0 ? "No buyer in the book is a fit."
+                    : strong === 1 && best - median >= 15 ? "One buyer stands out from the rest."
+                    : strong >= 2 ? "Several buyers are a strong fit."
+                    : possible && !strong ? "Possible fits only — no strong mandate yet."
+                    : "A few buyers are close; none dominate.",
+            };
+        }
+        function scoreHistogram(buyers, opts = {}) {
+            const bins = opts.book
+                ? [
+                    { lo: 0, hi: 55, label: "<55", caption: "Weak" },
+                    { lo: 55, hi: 75, label: "55–74", caption: "Possible" },
+                    { lo: 75, hi: 85, label: "75–84", caption: "Strong" },
+                    { lo: 85, hi: 90, label: "85–89", caption: "Strong" },
+                    { lo: 90, hi: 101, label: "90–100", caption: "Top" },
+                ]
+                : [
+                    { lo: 0, hi: 40, label: "0–39" },
+                    { lo: 40, hi: 55, label: "40–54" },
+                    { lo: 55, hi: 75, label: "55–74" },
+                    { lo: 75, hi: 85, label: "75–84" },
+                    { lo: 85, hi: 90, label: "85–89" },
+                    { lo: 90, hi: 101, label: "90–100" },
+                ];
+            const scores = (buyers || []).map((b) => b.score);
+            const counts = bins.map((b) => scores.filter((s) => s >= b.lo && s < b.hi).length);
+            const max = Math.max(...counts, 1);
+            const book = !!opts.book;
+            const W = book ? 440 : 340, H = book ? 168 : 80, L = book ? 28 : 16, B = book ? 36 : 18;
+            const barW = book ? 62 : 44, gap = book ? 16 : 10, plotH = book ? 96 : 48;
+            return `<svg viewBox="0 0 ${W} ${H}" class="w-full ${book ? "" : "max-w-lg"}" role="img" aria-label="Best-fit score histogram">
+                ${book ? `<text x="${L}" y="14" fill="#94a3b8" font-size="11">Companies in each best-fit band</text>` : ""}
+                ${bins.map((b, i) => {
+                    const h = Math.max(counts[i] ? 8 : 0, Math.round((counts[i] / max) * plotH));
+                    const x = L + i * (barW + gap);
+                    const fill = b.lo >= 90 ? "#34d399" : b.lo >= 75 ? "#6ee7b7" : b.lo >= 55 ? "#fbbf24" : "#64748b";
+                    const top = H - B - h;
+                    return `<rect x="${x}" y="${top}" width="${barW}" height="${h}" fill="${fill}" rx="4" opacity="${counts[i] ? 1 : 0.25}"/>
+                        <text x="${x + barW / 2}" y="${top - 6}" text-anchor="middle" fill="#e2e8f0" font-size="${book ? 12 : 8}" font-weight="700">${counts[i]}</text>
+                        <text x="${x + barW / 2}" y="${H - (book ? 18 : 4)}" text-anchor="middle" fill="#94a3b8" font-size="${book ? 11 : 8}">${b.label}</text>
+                        ${book && b.caption ? `<text x="${x + barW / 2}" y="${H - 4}" text-anchor="middle" fill="#64748b" font-size="9">${b.caption}</text>` : ""}`;
+                }).join("")}
+            </svg>`;
+        }
+        function scoreDotPlot(buyers) {
+            const scores = (buyers || []).map((b) => ({ name: b.buyer_name, score: b.score }));
+            if (!scores.length) return "";
+            const W = 320, H = 52, L = 18, R = 8, plot = W - L - R;
+            const x = (s) => L + (s / 100) * plot;
+            const used = {};
+            const dots = scores.map((d) => {
+                const key = String(d.score);
+                used[key] = (used[key] || 0) + 1;
+                const y = 34 - (used[key] - 1) * 7;
+                const fill = d.score >= 75 ? "#34d399" : d.score >= 55 ? "#fbbf24" : "#64748b";
+                return `<circle cx="${x(d.score)}" cy="${y}" r="4" fill="${fill}"><title>${esc(d.name)} · ${d.score}</title></circle>`;
+            }).join("");
+            return `<svg viewBox="0 0 ${W} ${H}" class="w-full max-w-md" role="img" aria-label="Score distribution">
+                <rect x="${x(0)}" y="26" width="${x(55)-x(0)}" height="10" fill="#334155" rx="2"/>
+                <rect x="${x(55)}" y="26" width="${x(75)-x(55)}" height="10" fill="#854d0e" rx="1"/>
+                <rect x="${x(75)}" y="26" width="${x(100)-x(75)}" height="10" fill="#065f46" rx="2"/>
+                <text x="${x(0)}" y="50" fill="#64748b" font-size="8">0</text>
+                <text x="${x(55)}" y="50" fill="#64748b" font-size="8">55</text>
+                <text x="${x(75)}" y="50" fill="#64748b" font-size="8">75</text>
+                <text x="${x(100)}" y="50" text-anchor="end" fill="#64748b" font-size="8">100</text>
+                ${dots}
+            </svg>`;
+        }
+        function stackedParts(buyer) {
+            const p = buyerParts(buyer);
+            const segs = [
+                { k: "Sector", v: p.sector, c: "#34d399" },
+                { k: "Region", v: p.region, c: "#38bdf8" },
+                { k: "Size", v: p.size, c: "#fbbf24" },
+                { k: "Confirmed", v: p.verified, c: "#94a3b8" },
+            ];
+            return `<div class="flex h-2.5 rounded-full overflow-hidden bg-slate-800" title="Sector ${p.sector} + region ${p.region} + size ${p.size} + confirmed ${p.verified}">
+                ${segs.map((s) => `<div style="width:${s.v}%;background:${s.c}"></div>`).join("")}
+            </div>
+            <div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-slate-500">
+                <span><span class="inline-block w-1.5 h-1.5 rounded-sm bg-emerald-400 align-middle"></span> Sector ${p.sector}/50</span>
+                <span><span class="inline-block w-1.5 h-1.5 rounded-sm bg-sky-400 align-middle"></span> Region ${p.region}/20</span>
+                <span><span class="inline-block w-1.5 h-1.5 rounded-sm bg-amber-400 align-middle"></span> Size ${p.size}/20</span>
+                <span><span class="inline-block w-1.5 h-1.5 rounded-sm bg-slate-400 align-middle"></span> Confirmed ${p.verified}/10</span>
+            </div>`;
+        }
+        function checkBars(buyer) {
+            const p = buyerParts(buyer);
+            return [["Sector", p.sector, 50, "bg-emerald-400"], ["Region", p.region, 20, "bg-sky-400"], ["Size", p.size, 20, "bg-amber-400"]].map(([label, v, max, color]) => `
+                <div class="flex items-center gap-2">
+                    <span class="w-12 text-[10px] text-slate-400">${label}</span>
+                    <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden"><div class="${color} h-full" style="width:${Math.round(100 * v / max)}%"></div></div>
+                    <span class="w-8 text-right text-[10px] text-slate-300">${v}/${max}</span>
+                </div>`).join("");
+        }
+        function matchStatsPanel(buyers, opts = {}) {
+            const s = computeMatchStats(buyers);
+            if (!s) return "";
+            if (opts.book) return bookFitPanel(s, buyers);
+            const cell = (label, value, hint) => `<div class="rounded-lg bg-slate-900/60 px-2.5 py-2"><div class="text-[10px] uppercase tracking-wide text-slate-500">${label}</div><div class="text-sm font-bold text-white">${value}</div>${hint ? `<div class="text-[10px] text-slate-500">${hint}</div>` : ""}</div>`;
+            return `<div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-3">
+                <div>
+                    <div class="text-xs font-semibold text-slate-200">${esc(opts.title || "Match statistics")}</div>
+                    <div class="text-[11px] text-slate-400 mt-1 leading-relaxed">${esc(s.read)} Best is ${s.lift.toFixed(0)} above the typical score.</div>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    ${cell("Best", s.best, "highest mandate")}
+                    ${cell("Typical", s.median.toFixed(0), "median")}
+                    ${cell("Spread", s.stdev.toFixed(0), s.stdev < 12 ? "tight cluster" : "mixed book")}
+                </div>
+                <div class="flex flex-wrap gap-2 text-[11px]">
+                    <span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300">${s.strong} strong</span>
+                    <span class="px-2 py-0.5 rounded-md bg-amber-400/15 text-amber-200">${s.possible} possible</span>
+                    <span class="px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">${s.weak} weak</span>
+                </div>
+                <div>
+                    <div class="text-[11px] text-slate-500 mb-1">${(buyers || []).length > 10 ? "How many companies fall in each best-fit band." : "Each dot is one buyer mandate."}</div>
+                    ${(buyers || []).length > 10 ? scoreHistogram(buyers) : scoreDotPlot(buyers)}
+                </div>
+            </div>`;
+        }
+        function mandateBookStrip() {
+            if (!buyers.length) return "";
+            const wins = {};
+            for (const p of prospects) {
+                const name = p.top_buyer?.buyer_name;
+                if (name) wins[name] = (wins[name] || 0) + 1;
+            }
+            return `<div>
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">The six buy-side mandates</div>
+                <p class="text-xs text-slate-400 mb-3 leading-relaxed">Six funds with an active search: sector, region and EBITDA band. Every company is scored against all six.</p>
+                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
+                    ${buyers.map((b) => `
+                        <div class="rounded-xl bg-slate-900/60 border border-slate-800 px-3 py-2.5">
+                            <div class="text-sm font-semibold text-white leading-snug">${esc(b.buyer_name)}</div>
+                            <div class="text-[11px] text-slate-300 mt-1 leading-snug">Looking for ${esc(b.target_sector)}</div>
+                            <div class="text-[11px] text-slate-500 mt-1">${esc(b.geographic_focus)} · ${band(b)} EBITDA</div>
+                            <div class="text-[11px] mt-1.5 ${wins[b.buyer_name] ? "text-emerald-300" : "text-slate-600"}">${wins[b.buyer_name] ? `best for ${wins[b.buyer_name]} compan${wins[b.buyer_name] === 1 ? "y" : "ies"}` : "not a top pick yet"}</div>
+                        </div>`).join("")}
+                </div>
+            </div>`;
+        }
+        function bookFitPanel(s, scores) {
+            const pct = (n) => s.n ? Math.round(100 * n / s.n) : 0;
+            const bandCard = (count, label, range, cls, bar) => `
+                <div class="rounded-xl bg-slate-900/70 border border-slate-800 px-3 py-3">
+                    <div class="flex items-baseline justify-between gap-2">
+                        <div class="text-2xl font-extrabold text-white">${count}</div>
+                        <div class="text-[11px] text-slate-500">${pct(count)}%</div>
+                    </div>
+                    <div class="text-xs font-semibold ${cls} mt-1">${label}</div>
+                    <div class="text-[11px] text-slate-500">${range}</div>
+                    <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden mt-2"><div class="${bar} h-full" style="width:${pct(count)}%"></div></div>
+                </div>`;
+            const spreadHint = s.stdev < 8 ? "Almost every company has a similar-quality best buyer."
+                : s.stdev < 14 ? "Most companies cluster around the same quality of match."
+                : "Best-fit quality varies a lot across the book.";
+            return `<div class="glass-panel rounded-2xl p-6 space-y-5">
+                <div>
+                    <h2 class="text-base font-bold text-white">Best-buyer fit across the book</h2>
+                    <p class="text-sm text-slate-400 mt-1 leading-relaxed">Who Mergero can call on, and how well the book matches them. The chart is each company's strongest buyer only — so almost nobody lands below 55.</p>
+                </div>
+                ${mandateBookStrip()}
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    <div class="lg:col-span-5 space-y-4">
+                        <p class="text-sm text-slate-200 leading-relaxed">
+                            <span class="text-3xl font-extrabold text-emerald-400 align-middle">${s.strong}</span>
+                            <span class="text-slate-300"> of ${s.n} companies already have a strong buyer (75+).</span>
+                        </p>
+                        <div class="grid grid-cols-3 gap-2">
+                            ${bandCard(s.strong, "Strong", "score 75+", "text-emerald-300", "bg-emerald-400")}
+                            ${bandCard(s.possible, "Possible", "score 55–74", "text-amber-200", "bg-amber-400")}
+                            ${bandCard(s.weak, "Weak", "score below 55", "text-slate-300", "bg-slate-500")}
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="rounded-xl bg-slate-900/50 px-3 py-2.5">
+                                <div class="text-[10px] uppercase tracking-wide text-slate-500">Typical</div>
+                                <div class="text-xl font-extrabold text-white">${s.median.toFixed(0)}</div>
+                                <div class="text-[11px] text-slate-500">median best-fit</div>
+                            </div>
+                            <div class="rounded-xl bg-slate-900/50 px-3 py-2.5">
+                                <div class="text-[10px] uppercase tracking-wide text-slate-500">Best</div>
+                                <div class="text-xl font-extrabold text-white">${s.best}</div>
+                                <div class="text-[11px] text-slate-500">highest match</div>
+                            </div>
+                            <div class="rounded-xl bg-slate-900/50 px-3 py-2.5">
+                                <div class="text-[10px] uppercase tracking-wide text-slate-500">Spread</div>
+                                <div class="text-xl font-extrabold text-white">±${s.stdev.toFixed(0)}</div>
+                                <div class="text-[11px] text-slate-500">${s.stdev < 12 ? "tight cluster" : "wider mix"}</div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">${spreadHint} Typical best-fit is ${s.median.toFixed(0)}; average is ${s.mean.toFixed(0)}.</p>
+                    </div>
+                    <div class="lg:col-span-7 rounded-xl bg-slate-900/40 border border-slate-800/80 px-4 py-3">
+                        ${scoreHistogram(scores, { book: true, median: s.median })}
+                    </div>
+                </div>
+            </div>`;
+        }
+        function axisValue(buyer, key) {
+            if (buyer.axes && buyer.axes[key] != null) return buyer.axes[key];
+            return ({ yes: 100, partial: 55, unknown: 40, no: 12 })[(buyer.checks || {})[key]?.ok] || 0;
+        }
+        function radarSvg(buyer, size = 96) {
+            const keys = ["sector", "region", "size"], labels = ["Sector", "Region", "Size"];
+            const vals = keys.map((k) => axisValue(buyer, k) / 100);
+            const cx = size / 2, cy = size / 2 + 2, r = size * 0.32;
+            const at = (i, s) => {
+                const a = -Math.PI / 2 + i * 2 * Math.PI / 3;
+                return [cx + Math.cos(a) * r * s, cy + Math.sin(a) * r * s];
+            };
+            const rings = [0.35, 0.7, 1].map((s) => `<polygon points="${keys.map((_, i) => at(i, s).join(",")).join(" ")}" fill="none" stroke="#334155" stroke-width="1"/>`).join("");
+            const spokes = keys.map((_, i) => { const [x, y] = at(i, 1); return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#475569"/>`; }).join("");
+            const poly = keys.map((_, i) => at(i, vals[i]).join(",")).join(" ");
+            const labs = keys.map((_, i) => {
+                const [x, y] = at(i, 1.38);
+                return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" fill="#94a3b8" font-size="8">${labels[i]}</text>`;
+            }).join("");
+            return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="shrink-0" role="img" aria-label="Sector, region and size fit"><polygon points="${keys.map((_, i) => at(i, 1).join(",")).join(" ")}" fill="#0f172a"/>${rings}${spokes}<polygon points="${poly}" fill="rgba(16,185,129,0.35)" stroke="#34d399" stroke-width="1.6"/>${labs}</svg>`;
+        }
+        function matchBarChart(buyers) {
+            if (!buyers?.length) return "";
+            const ranked = [...buyers].sort((a, b) => b.score - a.score);
+            return `<div class="space-y-1.5" role="img" aria-label="Buyer fit comparison">${ranked.map((b, i) => {
+                const color = b.score >= 75 ? "bg-emerald-500" : b.score >= 55 ? "bg-amber-400" : "bg-slate-500";
+                return `<div class="flex items-center gap-2">
+                    <div class="w-28 truncate text-[10px] ${i === 0 ? "text-white font-semibold" : "text-slate-400"}">${esc(b.buyer_name)}</div>
+                    <div class="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden"><div class="${color} h-full" style="width:${b.score}%"></div></div>
+                    <div class="w-8 text-right text-[10px] font-bold text-slate-300">${b.score}</div>
+                </div>`;
+            }).join("")}</div>`;
+        }
+        function ebitdaStrip(buyer) {
+            const lo = Number(buyer.min_ebitda_eur), hi = Number(buyer.max_ebitda_eur), company = buyer.company_ebitda_eur;
+            if (!lo || !hi) return "";
+            const max = Math.max(hi * 1.2, company || 0, 1);
+            const left = 100 * lo / max, width = 100 * (hi - lo) / max;
+            const mark = company != null ? Math.min(100, Math.max(0, 100 * company / max)) : null;
+            const inside = company != null && company >= lo && company <= hi;
+            return `<div class="mt-1">
+                <div class="text-[10px] text-slate-500 mb-0.5">Size: buyer wants €${(lo / 1e6).toFixed(0)}–${(hi / 1e6).toFixed(0)}M EBITDA${company != null ? ` · this company €${(company / 1e6).toFixed(1)}M` : " · company size unknown"}</div>
+                <div class="relative h-3 bg-slate-800 rounded-full overflow-hidden">
+                    <div class="absolute top-0 h-full ${inside ? "bg-emerald-500/40" : "bg-slate-600/80"} rounded-full" style="left:${left}%;width:${width}%"></div>
+                    ${mark != null ? `<div class="absolute top-0 h-full w-0.5 bg-white shadow" style="left:${mark}%" title="This company"></div>` : ""}
+                </div>
+            </div>`;
+        }
+        function checkDots(checks) {
+            if (!checks) return "";
+            const tone = { yes: "bg-emerald-400 text-slate-950", partial: "bg-amber-400 text-slate-950", unknown: "bg-slate-600 text-slate-200", no: "bg-rose-400 text-slate-950" };
+            const mark = { yes: "✓", partial: "~", unknown: "?", no: "×" };
+            const name = { sector: "Sector", region: "Region", size: "Size" };
+            return `<div class="flex flex-wrap gap-1.5">${["sector", "region", "size"].filter((k) => checks[k]).map((k) => {
+                const c = checks[k];
+                return `<span title="${esc(c.detail || c.label)}" class="text-[10px] font-bold px-1.5 py-0.5 rounded ${tone[c.ok] || tone.unknown}">${mark[c.ok] || "?"} ${name[k]}</span>`;
+            }).join("")}</div>`;
+        }
+        function buyerCards(buyers) {
+            if (!buyers?.length) return `<div class="text-slate-400">No buyer in the book is a clear fit yet.</div>`;
+            return `<div class="space-y-3">
+                ${matchStatsPanel(buyers, { title: "How the book compares" })}
+                <div class="pt-1">
+                    <div class="text-[11px] text-slate-400 mb-1.5">Green is a strong fit (75+). Amber is possible. Grey is weak.</div>
+                    ${matchBarChart(buyers)}
+                </div>
+                ${(buyers || []).map((b, i) => `
+                <div class="bg-slate-900/50 rounded-lg px-3 py-2">
+                    <div class="flex gap-3">
+                        ${radarSvg(b)}
+                        <div class="min-w-0 flex-1 space-y-1">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="text-slate-200 font-semibold truncate">${i === 0 ? "Best: " : ""}${esc(b.buyer_name)}</div>
+                                <span class="text-[10px] font-bold ${b.verdict === "strong" ? "text-emerald-300" : b.verdict === "possible" ? "text-amber-200" : "text-slate-400"}">${esc(b.verdict || "")} · ${b.score}</span>
+                            </div>
+                            <div class="text-[11px] text-slate-400">${esc(b.summary || b.target_sector || "")}</div>
+                            ${checkDots(b.checks)}
+                            ${checkBars(b)}
+                            ${stackedParts(b)}
+                            ${ebitdaStrip(b)}
+                        </div>
+                    </div>
+                </div>`).join("")}
+            </div>`;
+        }
+        function bar(label, value, max, color) {
+            return `<div><div class="flex justify-between text-[11px]"><span class="text-slate-400">${label}</span><span class="text-slate-200 font-semibold">${value}/${max}</span></div>
+                <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1"><div class="h-full ${color}" style="width:${Math.round(100 * value / max)}%"></div></div></div>`;
+        }
+
+        function renderProspectDrawer() {
+            const d = prospectDetail;
+            if (!d) return;
+            const c = d.company, s = d.scored, h = d.hypothesis, conv = d.conversation, camp = d.campaign, a = d.next_action;
+            const stageIdx = CRM_STAGES.indexOf(conv.stage);
+            const openStep = drawerStep ?? a.step;
+            const q = conv.last_qualification;
+            const top = d.triggers[0];
+            const sent = camp ? camp.sequence.filter((x) => x.status === "sent").length : 0;
+            const nextDraft = camp && !camp.stopped ? camp.sequence.find((x) => x.status === "drafted") : null;
+            const finished = a.key === "done" || a.key === "closed";
+
+            const triggers = d.triggers.map((t) => `
+                <li class="flex items-start gap-3">
+                    <div class="w-12 shrink-0 pt-0.5"><div class="h-1.5 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-rose-400" style="width:${Math.round(t.strength * 100)}%"></div></div>
+                        <div class="text-[9px] text-slate-500 mt-0.5">${Math.round(t.strength * 100)}%</div></div>
+                    <div class="min-w-0">
+                        <div class="text-xs text-white font-semibold">${esc(t.label)} <span class="text-[10px] font-normal text-slate-500">${t.side}-side${t.date ? " · " + esc(t.date) : ""}</span></div>
+                        <div class="text-[11px] text-slate-400">${esc(t.evidence)}</div>
+                        <div class="text-[10px] text-slate-600">${esc(t.source)}</div>
+                    </div>
+                </li>`).join("") || `<li class="text-xs text-slate-500">No triggers yet. Refresh with the live registry, or check the company on the Data tab.</li>`;
+
+            const message = (st) => {
+                if (nextDraft && st.step === nextDraft.step) return `
+                    <div class="bg-slate-800/40 rounded-xl p-3 space-y-2 border border-emerald-500/30">
+                        <div class="text-xs"><span class="font-semibold text-white">Day ${st.day} · next message</span> <span class="text-slate-500">· ${esc(st.channel)} · ${esc(st.subject)}</span></div>
+                        <textarea rows="${st.step === 0 ? 8 : 4}" onchange="editStep(${d.company_id}, ${st.step}, this.value)"
+                            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-[11px] text-slate-200 leading-relaxed focus:outline-none focus:border-emerald-500">${esc(st.body)}</textarea>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[10px] text-slate-500">Edit the text if you like. Changes are saved automatically.</span>
+                            ${a.key === "send" ? "" : `<button onclick="sendStep(${d.company_id}, ${st.step})" class="text-[11px] font-bold bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-1 rounded-lg cursor-pointer whitespace-nowrap">Send now (simulated)</button>`}
+                        </div>
+                    </div>`;
+                const tone = st.status === "sent" ? "text-emerald-400" : st.status === "cancelled" ? "text-rose-300" : "text-slate-500";
+                return `<details class="bg-slate-800/30 rounded-lg px-3 py-2">
+                    <summary class="cursor-pointer text-[11px] text-slate-300 flex justify-between gap-2"><span class="truncate">Day ${st.day} · ${esc(st.subject)}</span><span class="${tone} font-semibold shrink-0">${st.status === "sent" ? "sent ✓" : esc(st.status)}</span></summary>
+                    <div class="text-[11px] text-slate-400 whitespace-pre-line mt-2">${esc(st.body)}</div></details>`;
+            };
+
+            const thread = conv.thread.map((m) => m.direction === "out"
+                ? `<div class="ml-8 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2"><div class="text-[10px] text-emerald-300">Sent · ${esc(m.channel || "")}</div><div class="text-[11px] text-slate-300 whitespace-pre-line line-clamp-3">${esc(m.text || "")}</div></div>`
+                : `<div class="mr-8 bg-slate-800/60 rounded-xl p-2"><div class="text-[10px] ${CATEGORY_TONE[m.qualification.category] || "text-slate-400"}">Owner reply · ${esc(m.qualification.label)}</div><div class="text-[11px] text-slate-200">${esc(m.text)}</div></div>`
+            ).join("");
+
+            const qualCard = q ? `<div class="bg-slate-800/60 rounded-xl p-3 space-y-2">
+                    <div class="grid grid-cols-3 gap-2 text-[11px]">
+                        <div><div class="text-[10px] uppercase text-slate-500">Interested?</div><div class="${CATEGORY_TONE[q.category]} font-semibold">${esc(q.label)}</div></div>
+                        <div><div class="text-[10px] uppercase text-slate-500">Timing?</div><div class="text-slate-200 font-semibold">${esc(q.timing)}</div></div>
+                        <div><div class="text-[10px] uppercase text-slate-500">Potential mandate?</div>
+                            <div class="font-semibold ${q.potential_mandate ? "text-emerald-300" : "text-slate-400"}">${q.potential_mandate ? "Yes" : "Not yet"} · ${q.mandate_likelihood}%</div></div>
+                    </div>
+                    <div class="h-1.5 bg-slate-900 rounded-full overflow-hidden"><div class="h-full ${q.potential_mandate ? "bg-emerald-500" : "bg-slate-500"}" style="width:${q.mandate_likelihood}%"></div></div>
+                    <div class="text-[11px] text-slate-500">${q.mandate_type ? esc(q.mandate_type) + " · " : ""}${esc(q.reason)} (${esc(q.source)})</div>
+                    <div class="text-[11px] text-slate-300">Next: ${esc(q.next_action)}</div>
+                </div>` : "";
+
+            const replyForm = conv.closed ? "" : stageIdx < 1
+                ? `<div class="text-xs text-slate-500">Send the first message, then log the owner's reply here.</div>`
+                : `<textarea id="replyText" rows="3" placeholder="Paste the owner's reply here…" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"></textarea>
+                   <div class="flex flex-wrap items-center gap-2">
+                       <select onchange="useSample(this.value); this.selectedIndex = 0" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-300 cursor-pointer focus:outline-none">
+                           <option value="">Simulate an owner reply ▾</option>
+                           ${sampleReplies.map((r) => `<option value="${r.category}">${esc(r.label)}</option>`).join("")}
+                       </select>
+                       ${a.key === "log_reply" ? "" : `<button onclick="submitReply(${d.company_id})" class="text-[11px] font-bold bg-slate-100 hover:bg-white text-slate-900 px-2.5 py-1 rounded-lg cursor-pointer">Qualify reply</button>`}
+                   </div>`;
+
+            const handoffBody = `
+                ${q ? `<div class="text-[11px] text-slate-400">Owner said: <span class="${CATEGORY_TONE[q.category]} font-semibold">${esc(q.label)}</span> · timing ${esc(q.timing)} · ${q.mandate_likelihood}% potential mandate${q.mandate_type ? ` (${esc(q.mandate_type)})` : ""}</div>` : ""}
+                ${stageIdx < 1 && !conv.handoff ? `<div class="text-xs text-slate-500">Available once the owner has been contacted.</div>` : ""}
+                ${stageIdx >= 1 && stageIdx < 4 && !conv.closed ? `<div class="flex flex-wrap items-center gap-2">
+                    <input id="advisorName" placeholder="Advisor name (optional)" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white w-48 focus:outline-none focus:border-emerald-500">
+                    ${a.key === "handoff" ? "" : `<button onclick="handOff(${d.company_id})" class="text-[11px] font-bold bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-1 rounded-lg cursor-pointer">Book call early</button>`}</div>` : ""}
+                ${stageIdx === 5 ? `<div class="text-sm font-bold text-emerald-400">Engagement letter signed: mandate won.</div>` : ""}
+                ${conv.handoff ? `<details class="bg-slate-800/40 rounded-xl p-3 text-[11px]" open><summary class="cursor-pointer text-slate-200 font-semibold">Briefing sent to ${esc(conv.handoff.advisor)}</summary>
+                    <ul class="mt-2 space-y-1 text-slate-400">
+                        <li><span class="text-slate-500">Company:</span> ${esc(conv.handoff.company.legal_name || conv.handoff.company.company_name)}</li>
+                        <li><span class="text-slate-500">Hypothesis:</span> ${esc(conv.handoff.hypothesis.headline)}</li>
+                        <li><span class="text-slate-500">Score:</span> ${TIER_LABEL[conv.handoff.score.tier]} · ${conv.handoff.score.score}/100</li>
+                        <li><span class="text-slate-500">Triggers:</span> ${conv.handoff.triggers.map((t) => esc(t.label)).join(", ") || "–"}</li>
+                        <li><span class="text-slate-500">Conversation:</span> ${conv.handoff.thread.length} message(s)</li>
+                        <li><span class="text-slate-500">Next action:</span> <span class="text-slate-200">${esc(conv.handoff.suggested_next_action)}</span></li>
+                    </ul></details>` : ""}`;
+
+            const steps = [
+                { n: 2, title: "Signals", done: true,
+                  help: "Events that suggest the owner may be thinking about a sale, a partner or an acquisition.",
+                  summary: top ? `${d.triggers.length} trigger${d.triggers.length > 1 ? "s" : ""} · ${top.label}` : "No trigger yet",
+                  body: `<ul class="space-y-2">${triggers}</ul>` },
+                { n: 3, title: "Scoring", done: true,
+                  help: "How likely they need an advisor now: timing (up to 40), fit with our buyers (35) and urgency (25).",
+                  summary: `${TIER_LABEL[s.tier]} · ${s.score}/100`,
+                  body: `<div class="grid grid-cols-3 gap-3">${bar("Timing", s.timing, 40, "bg-rose-400")}${bar("Fit", s.fit, 35, "bg-sky-400")}${bar("Urgency", s.urgency, 25, "bg-amber-400")}</div>
+                         ${(s.best_buyers || []).length ? `<div class="mt-2 space-y-2">${matchStatsPanel((s.match_stats?.scores || s.best_buyers.map((b) => b.score)).map((score) => ({ score })), { title: "Buyer-fit statistics" })}${matchBarChart(s.best_buyers)}</div>` : ""}
+                         <ul class="space-y-0.5 text-[11px] text-slate-400">${s.explanation.map((e) => `<li>· ${esc(e)}</li>`).join("")}</ul>` },
+                { n: 4, title: "AI Hypothesis", done: true,
+                  help: "Why we would contact this owner, and what we could offer them.",
+                  summary: h.mandate_type,
+                  body: `<div class="bg-slate-800/50 rounded-xl p-3 space-y-2 text-xs">
+                        <div class="flex items-center gap-2"><span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${h.side === "buy" ? "bg-teal-500/20 text-teal-200" : "bg-violet-500/20 text-violet-200"}">${h.side}-side</span>
+                            <span class="text-white font-semibold">${esc(h.mandate_type)}</span></div>
+                        <div><div class="text-slate-500 text-[10px] uppercase">Why now</div><ul class="text-slate-300">${h.why_now.map((w) => `<li>· ${esc(w)}</li>`).join("") || "<li>· No trigger yet</li>"}</ul></div>
+                        <div><div class="text-slate-500 text-[10px] uppercase">Why Mergero</div><div class="text-slate-300">${esc(h.why_mergero)}</div></div>
+                        <div><div class="text-slate-500 text-[10px] uppercase">EV range</div><div class="text-slate-300">${esc(h.ev_range)}</div></div>
+                        <div><div class="text-slate-500 text-[10px] uppercase">Who would buy this</div>
+                            ${h.suggested_buyers.length ? buyerCards(h.suggested_buyers) : `<div class="text-slate-400">No buyer in the book is a clear fit yet.</div>`}</div>
+                        <div><div class="text-slate-500 text-[10px] uppercase">Ask the owner</div><ul class="text-slate-300">${h.questions_for_owner.map((x) => `<li>· ${esc(x)}</li>`).join("")}</ul></div>
+                    </div>` },
+                { n: 5, title: "Outreach", done: sent > 0,
+                  help: "A short sequence of personal messages in the right tone for the country. Sending is simulated: nothing leaves the app.",
+                  summary: !camp ? "Not started" : camp.stopped ? `Stopped: ${camp.stop_reason}` : `${sent} of ${camp.sequence.length} messages sent`,
+                  body: camp
+                    ? `<div class="text-[11px] text-slate-400"><span class="text-slate-200 font-semibold">${esc(camp.channel)}</span> · ${esc(camp.tone)}${camp.contact_name ? " · to " + esc(camp.contact_name) : ""}</div>
+                       <div class="space-y-2">${camp.sequence.map(message).join("")}</div>`
+                    : `<div class="text-xs text-slate-400">No messages yet. Click <span class="text-white font-semibold">Plan outreach</span> below and we draft four messages: a first note and three follow-ups over three weeks.</div>` },
+                { n: 6, title: "Qualification", done: !!q,
+                  help: "Log the owner's reply. We answer three questions: Interested? When? Is it a potential mandate?",
+                  summary: q ? `${q.label} · ${q.timing} · ${q.mandate_likelihood}% potential mandate` : stageIdx >= 1 ? "Waiting for the owner's reply" : "After the first message",
+                  body: `${thread ? `<div class="space-y-2">${thread}</div>` : ""}${qualCard}${replyForm}` },
+                { n: 7, title: "First call with advisor → engagement letter", tag: "simulated", done: stageIdx === 5,
+                  help: "An interested owner gets a first call with an advisor, who receives a full briefing. After 2-4 meetings the owner signs the engagement letter: that is the mandate.",
+                  summary: stageIdx === 5 ? "Engagement letter signed" : stageIdx === 4 ? `First call booked with ${conv.handoff?.advisor || "an advisor"}` : "After a positive reply",
+                  body: handoffBody },
+            ];
+
+            const stepHtml = (st) => {
+                const isOpen = openStep === st.n;
+                const isCurrent = !finished && st.n === a.step;
+                const dot = st.done ? `<i data-lucide="check" class="h-3 w-3"></i>` : st.n === 7 ? "→" : st.n;
+                return `<div id="pstep-${st.n}" class="rounded-xl border transition ${st.n === 7 ? "border-dashed" : ""} ${isCurrent ? "border-emerald-500/50 bg-emerald-500/5" : "border-slate-800"} ${demo?.highlight === st.n ? "ring-2 ring-emerald-400" : ""}">
+                    <button onclick="showStep(${st.n})" class="w-full flex items-center gap-3 px-3 py-2.5 text-left cursor-pointer">
+                        <span class="h-6 w-6 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold ${st.done ? "bg-emerald-500 text-slate-950" : isCurrent ? "bg-white text-slate-900" : "bg-slate-700 text-slate-300"}">${dot}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-semibold text-white">${st.title}${st.tag ? ` <span class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">${st.tag}</span>` : ""}${isCurrent ? ` <span class="text-[9px] uppercase tracking-wider text-emerald-300 font-bold ml-1">next</span>` : ""}</div>
+                            <div class="text-[11px] text-slate-400 truncate">${esc(st.summary)}</div>
+                        </div>
+                        <i data-lucide="${isOpen ? "chevron-up" : "chevron-down"}" class="h-4 w-4 text-slate-500 shrink-0"></i>
+                    </button>
+                    ${isOpen ? `<div class="px-3 pb-3 space-y-3"><div class="text-[11px] text-slate-500">${st.help}</div>${st.body}</div>` : ""}
+                </div>`;
+            };
+
+            const primaryLabel = a.key === "log_reply" ? "Qualify reply" : a.label;
+            const primary = ACTION_STYLE[a.key]
+                ? `<button id="primaryAction" onclick="primaryAction()" class="flex-1 font-bold px-4 py-2.5 rounded-xl text-sm cursor-pointer ${ACTION_STYLE[a.key]}">${esc(primaryLabel)}</button>`
+                : `<div class="flex-1 text-sm font-semibold ${a.key === "done" ? "text-emerald-400" : "text-slate-400"}">${esc(a.key === "closed" ? `Closed: ${conv.outcome === "unsubscribe" ? "unsubscribed" : "not interested"}` : a.label)}</div>`;
+
+            document.getElementById("drawerContent").innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Prospect · ${c.data_origin === "real" ? "real company" : "illustrative data"}</div>
+                            <h3 class="text-xl font-bold text-white mt-1">${esc(c.legal_name || c.company_name)}</h3>
+                            <div class="text-sm text-slate-400">${esc(c.country_name)} · ${esc(c.sector)}${c.ebitda_eur ? " · EBITDA " + money(c.ebitda_eur) : ""}</div>
+                        </div>
+                        <button onclick="closeDrawer()" class="text-slate-400 hover:text-white cursor-pointer"><i data-lucide="x" class="h-5 w-5"></i></button>
+                    </div>
+
+                    <div class="bg-slate-800/50 rounded-xl p-3 space-y-1.5">
+                        <div class="text-[10px] uppercase font-bold tracking-wider text-emerald-300">Why this company</div>
+                        <div class="text-sm text-white font-semibold">${esc(h.headline)}</div>
+                        <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                            <span class="font-bold px-1.5 py-0.5 rounded ${TIER_CHIP[s.tier]}">${TIER_LABEL[s.tier]} · ${s.score}</span>
+                            ${top ? `<span>${esc(top.label)}${top.date ? ` · ${esc(top.date.slice(0, 7))}` : ""}</span>` : ""}
+                            ${q ? `<span class="font-bold ${q.potential_mandate ? "text-emerald-300" : ""}">${q.mandate_likelihood}% potential mandate</span>` : ""}
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-6 gap-1">${CRM_STAGES.map((st, n) => `<div><div class="h-1.5 rounded-full ${n <= stageIdx ? "bg-emerald-400" : "bg-slate-700"}"></div>
+                        <div class="text-[9px] mt-1 leading-tight ${n === stageIdx ? "text-white font-semibold" : "text-slate-500"}">${esc(d.stage_labels[n])}</div></div>`).join("")}</div>
+                    ${conv.follow_up_on ? `<div class="text-xs text-amber-200">Owner asked to reconnect later. Follow up on ${esc(conv.follow_up_on)}.</div>` : ""}
+
+                    <div class="space-y-2">${steps.map(stepHtml).join("")}</div>
+                </div>
+
+                <div class="sticky bottom-0 -mx-6 -mb-6 mt-4 px-6 py-3 bg-slate-900 border-t border-slate-800 flex items-center gap-3">
+                    ${primary}
+                    <button onclick="nextProspect()" class="text-xs font-semibold text-slate-300 hover:text-white px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 cursor-pointer whitespace-nowrap">Next prospect →</button>
+                </div>
+            `;
+            icons();
+        }
+
+        async function primaryAction() {
+            const d = prospectDetail, a = d.next_action, id = d.company_id;
+            if (a.key === "plan" || a.key === "follow_up") return planOutreach(id);
+            if (a.key === "send") return sendStep(id, a.message_step);
+            if (a.key === "handoff") return handOff(id);
+            if (a.key === "mandate") return markMandate(id);
+            if (a.key === "log_reply") {
+                const box = document.getElementById("replyText");
+                if (box && box.value.trim()) return submitReply(id);
+                if (!box) { drawerStep = 6; renderProspectDrawer(); }
+                document.getElementById("replyText")?.focus();
+                toast("Paste the owner's reply, or pick one under Simulate an owner reply");
+            }
+        }
+
+        function nextProspect() {
+            const order = QUEUE.flatMap((g) => queueItems(g).slice(0, g.limit || 6));
+            const pool = order.length ? order : prospects;
+            const current = prospectDetail?.company_id;
+            const idx = pool.findIndex((p) => p.company_id === current);
+            const next = pool[(idx + 1) % pool.length];
+            if (next && next.company_id !== current) openProspect(next.company_id);
+            else toast("Nothing else is waiting right now");
+        }
+
+        async function refreshAfter(res, message) {
+            prospectDetail = res.data;
+            drawerStep = null;
+            renderProspectDrawer();
+            if (message) toast(message);
+            refreshLists();
+        }
+
+        async function planOutreach(id) {
+            try { await refreshAfter(await api(`/api/prospects/${id}/outreach`, { method: "POST" }), "4 messages drafted. Next: send the first one."); }
+            catch (e) { toast(e.message, "error"); }
+        }
+        async function editStep(id, step, body) {
+            try { await api(`/api/prospects/${id}/outreach/${step}`, { method: "PATCH", body: { body } }); toast("Message saved"); }
+            catch (e) { toast(e.message, "error"); }
+        }
+        async function sendStep(id, step) {
+            try { await refreshAfter(await api(`/api/prospects/${id}/outreach/${step}/send`, { method: "POST" }), "Sent (simulated). Next: log the owner's reply when it arrives."); }
+            catch (e) { toast(e.message, "error"); }
+        }
+        function useSample(category) {
+            const sample = sampleReplies.find((r) => r.category === category);
+            if (sample) document.getElementById("replyText").value = sample.text;
+        }
+        async function submitReply(id) {
+            const text = document.getElementById("replyText")?.value.trim();
+            if (!text) { toast("Paste the owner's reply, or pick one under Simulate an owner reply"); return; }
+            try {
+                const res = await api(`/api/prospects/${id}/replies`, { method: "POST", body: { text } });
+                const q = res.qualification;
+                await refreshAfter(res, `${q.label} · ${q.timing} · ${q.mandate_likelihood}% potential mandate`);
+            } catch (e) { toast(e.message, "error"); }
+        }
+        async function handOff(id) {
+            const advisor = document.getElementById("advisorName")?.value.trim();
+            try { await refreshAfter(await api(`/api/prospects/${id}/handoff`, { method: "POST", body: { advisor } }), "First call booked and briefing sent. Next: mark the engagement letter when it's signed."); }
+            catch (e) { toast(e.message, "error"); }
+        }
+        async function markMandate(id) {
+            try { await refreshAfter(await api(`/api/prospects/${id}/mandate`, { method: "POST" }), "Engagement letter signed: mandate won"); }
+            catch (e) { toast(e.message, "error"); }
+        }
+
+        // ---------- guided demo ----------
+        const DEMO_REPLY = "Thanks for reaching out, happy to talk. Coffee next week works for me.";
+        const DEMO = [
+            { title: "40 companies, ranked", text: "Every company is scored on how likely it is to need an M&A advisor right now. We open the hottest one.", step: -1 },
+            { title: "Match statistics across the book", text: "Each company is scored against the six buyer mandates. The histogram is the best score per company: how many have a strong buyer, and where the median sits.", view: "book" },
+            { title: "Step 2 of 6 · Signals", text: "These events are why this owner may be ready to talk now, for example a founder nearing retirement.", step: 2 },
+            { title: "Step 3 of 6 · Scoring", text: "Timing, fit and urgency add up to 100. Buyer-fit statistics show mean, median and spread. A large gap between best and median means one mandate stands out.", step: 3 },
+            { title: "Matching: who would buy this", text: "Every mandate is ranked. The dot plot is the score distribution. The stacked bar is the 100 points (sector 50, region 20, size 20, confirmed 10). The size strip is EBITDA vs the buyer's band.", view: "screen" },
+            { title: "Step 4 of 6 · AI Hypothesis", text: "The engine explains why we should call, which buyers fit — with the same charts — and what to ask the owner.", step: 4 },
+            { title: "Step 5 of 6 · Outreach", text: "One click drafts four personal messages in the right tone for the country.", step: 5,
+              run: (id) => api(`/api/prospects/${id}/outreach`, { method: "POST" }) },
+            { title: "Step 5 of 6 · Send", text: "We send the first message. Sending is simulated: nothing leaves the app.", step: 5,
+              run: (id) => api(`/api/prospects/${id}/outreach/0/send`, { method: "POST" }) },
+            { title: "Step 6 of 6 · Qualification", text: "The owner replies. We answer: interested? when? is it a potential mandate?", step: 6,
+              run: (id) => api(`/api/prospects/${id}/replies`, { method: "POST", body: { text: DEMO_REPLY } }) },
+            { title: "First call with an advisor (simulated)", text: "The interested owner gets a first call with an advisor, who receives a full briefing: profile, triggers, score, hypothesis and the conversation.", step: 7,
+              run: (id) => api(`/api/prospects/${id}/handoff`, { method: "POST", body: { advisor: "Mergero advisor" } }) },
+            { title: "Engagement letter signed (simulated)", text: "After 2-4 meetings the owner signs the engagement letter. That is the mandate, and it closes the loop.", step: 7,
+              run: (id) => api(`/api/prospects/${id}/mandate`, { method: "POST" }) },
+            { title: "From data to mandate", final: true },
+        ];
+
+        async function startDemo() {
+            closeMenus();
+            const started = prospects.some((p) => p.stage !== "Prospect" || p.next_action.key !== "plan");
+            if (started && !confirm("The demo clears all outreach and replies so it can start fresh. Continue?")) return;
+            try {
+                await api("/api/demo/reset", { method: "POST" });
+                dismissHowItWorks();
+                setTab("prospects");
+                await loadProspects();
+                demo = { i: 0, id: prospects[0].company_id, ran: new Set(), highlight: null, summary: null };
+                await playDemoStep();
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        async function demoGo(delta) {
+            if (!demo) return;
+            demo.i = Math.max(0, Math.min(DEMO.length - 1, demo.i + delta));
+            await playDemoStep();
+        }
+
+        function clearDemoFocus() {
+            document.querySelectorAll(".demo-focus").forEach((el) => el.classList.remove("demo-focus"));
+        }
+        async function demoScreen(id) {
+            const rec = await api(`/api/companies/${id}`);
+            const res = await api("/api/match", { method: "POST", body: { profile: rec.profile } });
+            lastProfile = res.profile;
+            lastMatches = res.matches || [];
+            const name = lastProfile.company_name || "";
+            const input = document.getElementById("screenInput");
+            if (input) input.value = name;
+            closeDrawer();
+            setTab("buy");
+            const box = document.getElementById("screenResult");
+            box.classList.remove("hidden");
+            renderScreenResult();
+            box.classList.add("demo-focus");
+            box.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        async function playDemoStep() {
+            const st = DEMO[demo.i];
+            document.querySelectorAll("#demoBar button").forEach((b) => (b.disabled = true));
+            clearDemoFocus();
+            try {
+                if (st.final) {
+                    demo.highlight = null;
+                    closeDrawer();
+                    setTab("prospects");
+                    refreshLists();
+                    demo.summary = await loadStepper();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                } else if (st.view === "book") {
+                    demo.highlight = null;
+                    closeDrawer();
+                    setTab("prospects");
+                    await loadProspects();
+                    const book = document.getElementById("bookMatchStats");
+                    book?.classList.add("demo-focus");
+                    book?.scrollIntoView({ behavior: "smooth", block: "center" });
+                } else if (st.view === "screen") {
+                    demo.highlight = null;
+                    await demoScreen(demo.id);
+                } else {
+                    setTab("prospects");
+                    if (st.run && !demo.ran.has(demo.i)) {
+                        await st.run(demo.id);
+                        demo.ran.add(demo.i);
+                        refreshLists();
+                    }
+                    demo.highlight = st.step > 0 ? st.step : null;
+                    await openProspect(demo.id, st.step);
+                    if (st.step > 0) document.getElementById(`pstep-${st.step}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+            } catch (e) { toast(e.message, "error"); }
+            renderDemo();
+        }
+
+        function renderDemo() {
+            const bar = document.getElementById("demoBar");
+            if (!demo) { bar.classList.add("hidden"); return; }
+            const st = DEMO[demo.i];
+            const s = demo.summary;
+            const text = st.final && s
+                ? `From ${s.data.companies} companies to ${s.handoff.mandates} mandate: ${s.signals.with_triggers} with an M&A trigger, ${s.scoring.A} hot, ${s.outreach.sent} message sent, ${s.qualification.potential_mandates} potential mandate qualified. Now try it yourself from the Today list.`
+                : st.text;
+            const last = demo.i === DEMO.length - 1;
+            bar.classList.remove("hidden");
+            bar.classList.toggle("left-4", st.view !== "screen");
+            bar.classList.toggle("right-4", st.view === "screen");
+            bar.classList.toggle("left-auto", st.view === "screen");
+            bar.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Guided demo · ${demo.i + 1} of ${DEMO.length}</span>
+                    <button onclick="exitDemo()" class="text-slate-500 hover:text-slate-900 cursor-pointer" title="Exit the demo"><i data-lucide="x" class="h-4 w-4"></i></button>
+                </div>
+                <div class="h-1 bg-slate-300 rounded-full overflow-hidden"><div class="h-full bg-emerald-500" style="width:${Math.round(100 * (demo.i + 1) / DEMO.length)}%"></div></div>
+                <div class="text-base font-bold">${esc(st.title)}</div>
+                <div class="text-sm text-slate-700">${esc(text)}</div>
+                <div class="flex items-center justify-end gap-2 pt-1">
+                    ${demo.i > 0 ? `<button onclick="demoGo(-1)" class="text-sm font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg cursor-pointer">Back</button>` : ""}
+                    ${last
+                        ? `<button onclick="startDemo()" class="text-sm font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg cursor-pointer">Run again</button>
+                           <button onclick="exitDemo()" class="text-sm font-bold bg-slate-900 text-white px-4 py-1.5 rounded-lg cursor-pointer">Finish</button>`
+                        : `<button onclick="demoGo(1)" class="text-sm font-bold bg-slate-900 text-white px-4 py-1.5 rounded-lg cursor-pointer">${DEMO[demo.i + 1]?.run ? "Next: do it" : "Next"} →</button>`}
+                </div>`;
+            icons();
+        }
+
+        function exitDemo() {
+            demo = null;
+            renderDemo();
+            if (drawer?.mode === "prospect") renderProspectDrawer();
+        }
+
+        // ---------- data sources ----------
+        const SOURCE_TAG = {
+            seed: "bg-slate-800 text-slate-300",
+            registry: "bg-sky-500/15 text-sky-300",
+            website: "bg-emerald-500/15 text-emerald-300",
+            signals: "bg-amber-400/15 text-amber-200",
+        };
+        const SOURCE_LABEL = { seed: "dataset", registry: "registry", website: "website", signals: "signals" };
+        const SIGNAL_CHIP = {
+            succession: "bg-rose-500/15 text-rose-200",
+            ownership_change: "bg-violet-500/15 text-violet-200",
+            management_change: "bg-sky-500/15 text-sky-200",
+            acquisition: "bg-teal-500/15 text-teal-200",
+            growth: "bg-emerald-500/15 text-emerald-200",
+            capital_need: "bg-amber-400/15 text-amber-200",
+        };
+        let companies = [];
+        let signalLabels = {};
+        let companyRecords = {};
+        let sourcesLoaded = false;
+
+        function money(value) { return value ? `€${(value / 1e6).toFixed(1)}M` : "–"; }
+        function signalChip(s) {
+            return `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded ${SIGNAL_CHIP[s.signal_type] || "bg-slate-800 text-slate-300"}" title="${esc(s.headline)}">${esc(signalLabels[s.signal_type] || s.signal_type)}${s.date ? " " + esc(s.date.slice(0, 7)) : ""}</span>`;
+        }
+        function sourceTag(source) {
+            return source ? `<span class="ml-1 text-[9px] font-semibold uppercase tracking-wider px-1 py-px rounded ${SOURCE_TAG[source] || SOURCE_TAG.seed}">${esc(SOURCE_LABEL[source] || source)}</span>` : "";
+        }
+
+        async function loadDataSources() {
+            if (!sourcesLoaded) {
+                document.getElementById("sourceCards").innerHTML = `<div class="col-span-full text-xs text-slate-500">Checking sources…</div>`;
+            }
+            await Promise.all([loadSources(), loadCompanies()]);
+            sourcesLoaded = true;
+        }
+
+        async function loadSources() {
+            try {
+                const res = await api("/api/sources");
+                const statusTone = (s) => s === "live" || s === "loaded" ? "text-emerald-400" : s === "offline" ? "text-rose-300" : "text-slate-400";
+                const typeLabel = { internal: "Internal", public: "Public", live: "Live" };
+                document.getElementById("sourceCards").innerHTML = res.data.map((s) => `
+                    <div class="bg-slate-800/50 rounded-xl p-3 space-y-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">${esc(typeLabel[s.type] || s.type)}</span>
+                            <span class="text-[10px] font-semibold ${statusTone(s.status)}">● ${esc(s.status)}</span>
+                        </div>
+                        <div class="text-sm font-semibold text-white leading-tight">${esc(s.name)}</div>
+                        <div class="text-2xl font-extrabold text-white">${s.count}</div>
+                        <div class="text-[11px] text-slate-500 leading-snug">${esc(s.detail)}</div>
+                    </div>`).join("");
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        async function loadCompanies() {
+            const country = document.getElementById("countryFilter").value;
+            const signal = document.getElementById("signalFilter").value;
+            const params = new URLSearchParams();
+            if (country) params.set("country", country);
+            if (signal) params.set("signal", signal);
+            try {
+                const res = await api(`/api/companies?${params}`);
+                companies = res.data || [];
+                signalLabels = Object.fromEntries((res.signal_types || []).map((s) => [s.key, s.label]));
+                const signalSelect = document.getElementById("signalFilter");
+                if (signalSelect.options.length === 1) {
+                    signalSelect.innerHTML += (res.signal_types || []).map((s) => `<option value="${esc(s.key)}">${esc(s.label)}</option>`).join("");
+                }
+                const countrySelect = document.getElementById("countryFilter");
+                if (countrySelect.options.length === 1 && !country && !signal) {
+                    const seen = [...new Map(companies.map((c) => [c.country, c.country_name])).entries()].sort();
+                    countrySelect.innerHTML += seen.map(([code, name]) => `<option value="${esc(code)}">${esc(name)}</option>`).join("");
+                }
+                renderCompanies();
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        function renderCompanies() {
+            const q = (document.getElementById("companySearch").value || "").toLowerCase();
+            const rows = companies.filter((c) => `${c.company_name} ${c.sector} ${c.country_name}`.toLowerCase().includes(q));
+            document.getElementById("companyCount").innerText = `(${rows.length})`;
+            document.getElementById("companyBody").innerHTML = rows.map((c) => {
+                const latest = c.latest_signal ? signalChip(c.latest_signal) : "";
+                const more = c.signal_count > 1 ? `<span class="text-[10px] text-slate-500">+${c.signal_count - 1}</span>` : "";
+                return `<tr onclick="openCompany(${c.company_id})" class="hover:bg-slate-800/40 cursor-pointer">
+                    <td class="py-2.5 pr-4">
+                        <div class="font-semibold text-white">${esc(c.company_name)}</div>
+                        <div class="text-[10px] ${c.data_origin === "real" ? "text-sky-300" : "text-slate-500"}">${c.data_origin === "real" ? "Real company · enrich live" : "Illustrative data"}</div>
+                    </td>
+                    <td class="py-2.5 pr-4 text-xs text-slate-300">${esc(c.country_name)}</td>
+                    <td class="py-2.5 pr-4 text-xs text-slate-300">${esc(c.sector)}</td>
+                    <td class="py-2.5 pr-4 font-mono text-xs text-slate-300">${money(c.ebitda_eur)}</td>
+                    <td class="py-2.5 pr-4 text-xs text-slate-400 capitalize">${esc(c.ownership_type || "–")}</td>
+                    <td class="py-2.5"><div class="flex flex-wrap items-center gap-1">${latest}${more}${!c.signal_count ? `<span class="text-[10px] text-slate-600">none yet</span>` : ""}</div></td>
+                </tr>`;
+            }).join("") || `<tr><td colspan="6" class="py-6 text-center text-xs text-slate-500">No companies match these filters.</td></tr>`;
+        }
+
+        async function openCompany(id) {
+            drawer = { mode: "company", id };
+            document.getElementById("drawerContent").innerHTML = `<div class="text-sm text-slate-400">Loading…</div>`;
+            openDrawer();
+            try {
+                const res = await api(`/api/companies/${id}`);
+                companyRecords[id] = res;
+                renderCompanyDrawer();
+            } catch (e) { toast(e.message, "error"); closeDrawer(); }
+        }
+
+        function renderCompanyDrawer() {
+            const res = companyRecords[drawer.id];
+            if (!res) return;
+            const { company: c, signals, provenance, sources_used, registry, website, enriched_at } = res.data;
+            const canEnrich = c.country === "FI" || !!c.website;
+            const field = (label, key, value) => `<div class="bg-slate-800/50 rounded-lg px-3 py-2">
+                <div class="text-[10px] text-slate-500 flex items-center">${label}${sourceTag(provenance[key])}</div>
+                <div class="text-xs text-slate-200 mt-0.5">${value === null || value === undefined || value === "" ? `<span class="text-slate-600">unknown</span>` : esc(value)}</div></div>`;
+            const timeline = signals.map((s) => `
+                <li class="flex gap-3">
+                    <div class="text-[10px] font-mono text-slate-500 w-20 shrink-0 pt-0.5">${esc(s.date)}</div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">${signalChip({ ...s, date: "" })}</div>
+                        <div class="text-xs text-slate-200 mt-1">${esc(s.headline)}</div>
+                        <div class="text-[10px] text-slate-500">${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" class="hover:text-teal-300">${esc(s.source)}</a>` : esc(s.source)}</div>
+                        ${s.evidence ? `<div class="text-[10px] text-slate-500 italic mt-0.5">${esc(s.evidence)}</div>` : ""}
+                    </div>
+                </li>`).join("");
+            const liveNote = !enriched_at
+                ? (canEnrich ? "Not enriched yet. Enrich live to pull registry facts and read the company's website." : "No live source for this company (illustrative, non-Finnish, no website).")
+                : `Enriched ${new Date(enriched_at).toLocaleTimeString()}. Registry: ${registry ? esc(registry.status) : "not used"} · Website: ${website ? (website.fetched ? "read" : "could not be read") : "not used"}.`;
+
+            document.getElementById("drawerContent").innerHTML = `
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Company record · ${c.data_origin === "real" ? "real company" : "illustrative data"}</div>
+                        <h3 class="text-xl font-bold text-white mt-1">${esc(c.legal_name || c.company_name)}</h3>
+                        <div class="text-sm text-slate-400">${esc(c.country_name)}${c.city ? " · " + esc(c.city) : ""}</div>
+                        ${c.website ? `<a href="${esc(c.website)}" target="_blank" rel="noopener" class="text-[11px] text-slate-500 hover:text-teal-300">${esc(c.website)}</a>` : ""}
+                    </div>
+                    <button onclick="closeDrawer()" class="text-slate-400 hover:text-white cursor-pointer"><i data-lucide="x" class="h-5 w-5"></i></button>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-1 text-[10px] text-slate-500">Sources used: ${sources_used.map((s) => sourceTag(s)).join("")}</div>
+
+                <div class="flex flex-wrap gap-2">
+                    <button id="enrichBtn" ${canEnrich ? `onclick="enrichCompany(${c.company_id})"` : "disabled"} class="bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-bold px-3 py-2 rounded-lg text-xs cursor-pointer flex items-center gap-1">
+                        <i data-lucide="radar" class="h-3.5 w-3.5"></i>Enrich live</button>
+                    <button onclick="screenCompany(${c.company_id})" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs cursor-pointer flex items-center gap-1">
+                        <i data-lucide="target" class="h-3.5 w-3.5"></i>Screen against buyers</button>
+                </div>
+                <div class="text-[11px] text-slate-500">${liveNote}</div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    ${field("Sector", "sector", c.sector)}
+                    ${field("Sector on website", "website_sector", c.website_sector)}
+                    ${field("Business ID", "business_id", c.business_id)}
+                    ${field("Founded / registered", "founded_year", c.founded_year)}
+                    ${field("Industry (registry)", "industry", c.industry)}
+                    ${field("Company form", "company_form", c.company_form)}
+                    ${field("Revenue", "revenue_eur", c.revenue_eur ? money(c.revenue_eur) : null)}
+                    ${field("EBITDA", "ebitda_eur", c.ebitda_eur ? money(c.ebitda_eur) : null)}
+                    ${field("Employees", "employees", c.employees)}
+                    ${field("Ownership", "ownership_type", c.ownership_type)}
+                    ${field("Owner", "owner_name", c.owner_name)}
+                    ${field("CEO", "ceo_name", c.ceo_name)}
+                </div>
+
+                ${website?.pages?.length ? `<div class="space-y-2">
+                    <div class="text-sm font-semibold text-white">Website crawl <span class="text-slate-500 font-medium">(${website.pages.length} pages)</span></div>
+                    <div class="text-[11px] text-slate-500">${website.crawl?.robots_found ? "robots.txt honoured" : "no robots.txt"}
+                        · ${website.crawl?.stats?.discovered || 0} URLs found
+                        · ${website.crawl?.stats?.ms ? Math.round(website.crawl.stats.ms / 1000) + "s" : ""}
+                        ${website.crawl?.js_only ? " · page looks JS-only, raw HTML used" : ""}</div>
+                    <ul class="space-y-1">${website.pages.map((p) => `<li class="text-[11px] text-slate-300 truncate">
+                        <span class="text-slate-500">${esc(p.category)}</span>
+                        <a href="${esc(p.url)}" target="_blank" rel="noopener" class="hover:text-teal-300">${esc(p.title || p.url)}</a>
+                        <span class="text-slate-600">${p.words} words</span></li>`).join("")}</ul>
+                    ${website.business_ids?.length ? `<div class="text-[11px] text-slate-400">IDs on the site: ${website.business_ids.map((i) => esc(i.type + " " + i.value)).join(" · ")}</div>` : ""}
+                    ${website.facts?.length ? `<ul class="space-y-1">${website.facts.map((f) => `<li class="text-[11px] text-slate-400">“${esc(f.quote)}” <a href="${esc(f.url)}" class="text-slate-600 hover:text-teal-300" target="_blank" rel="noopener">source</a></li>`).join("")}</ul>` : ""}
+                </div>` : ""}
+
+                <div class="space-y-3">
+                    <div class="text-sm font-semibold text-white">Signals <span class="text-slate-500 font-medium">(${signals.length})</span></div>
+                    <ul class="space-y-3">${timeline || `<li class="text-xs text-slate-500">No signals yet.${canEnrich ? " Enrich live to look for some." : ""}</li>`}</ul>
+                </div>`;
+            icons();
+        }
+
+        async function enrichCompany(id) {
+            const btn = document.getElementById("enrichBtn");
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="h-3.5 w-3.5 spin"></i>Checking registry and website…`;
+            icons();
+            try {
+                const res = await api(`/api/companies/${id}/enrich`, { method: "POST" });
+                companyRecords[id] = res;
+                if (drawer?.mode === "company" && drawer.id === id) renderCompanyDrawer();
+                const added = res.data.new_signals.length;
+                toast(added ? `${added} new signal${added > 1 ? "s" : ""} found` : "Enriched, no new signals");
+                loadDataSources();
+                refreshMetrics();
+            } catch (e) {
+                toast(e.message, "error");
+                btn.disabled = false;
+            }
+        }
+
+        async function screenCompany(id) {
+            const record = companyRecords[id];
+            if (!record) return;
+            try {
+                const res = await api("/api/match", { method: "POST", body: { profile: record.profile } });
+                lastProfile = res.profile;
+                lastMatches = res.matches || [];
+                closeDrawer();
+                setTab("buy");
+                renderScreenResult();
+                renderSteps();
+                refreshMetrics();
+                document.getElementById("screenResult").scrollIntoView({ behavior: "smooth", block: "start" });
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        // ---------- steps ----------
+        function renderSteps() {
+            const hasScreen = !!lastProfile;
+            const hasMatch = deals.length > 0;
+            const hasDraft = deals.some((d) => stageIndex(d.stage) >= 2);
+            const hasMandate = deals.some((d) => d.stage === "Mandate conversation");
+            const steps = [
+                { n: 1, title: "Screen a company", body: "Read its public website", done: hasScreen },
+                { n: 2, title: "Pick the best buyer", body: "Ranked against each mandate", done: hasMatch },
+                { n: 3, title: "Draft outreach", body: "IC note and owner warm-up", done: hasDraft },
+                { n: 4, title: "Track to mandate", body: "Move it through the stages", done: hasMandate }
+            ];
+            const current = steps.find((s) => !s.done)?.n ?? 5;
+            document.getElementById("steps").innerHTML = steps.map((s) => {
+                const state = s.done ? "done" : s.n === current ? "now" : "later";
+                const ring = state === "done" ? "bg-emerald-500 text-slate-950" : state === "now" ? "bg-slate-100 text-slate-900" : "bg-slate-800 text-slate-500";
+                const border = state === "now" ? "border-emerald-500/60" : "border-slate-800";
+                return `<li class="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border ${border}">
+                    <span class="h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${ring}">${s.done ? "✓" : s.n}</span>
+                    <div><div class="text-sm font-semibold ${state === "later" ? "text-slate-500" : "text-white"}">${s.title}</div>
+                    <div class="text-[11px] text-slate-500">${s.body}</div></div></li>`;
+            }).join("");
+        }
+
+        // ---------- data ----------
+        async function refreshMetrics() {
+            try {
+                const m = await api("/api/metrics");
+                document.getElementById("metricBuyers").innerText = m.buyers ?? 0;
+                document.getElementById("metricTotal").innerText = m.matches ?? 0;
+                document.getElementById("metricOutreach").innerText = m.outreach_ready ?? 0;
+                document.getElementById("metricDialogues").innerText = m.dialogues ?? 0;
+            } catch (e) { /* metrics are non-critical */ }
+        }
+
+        async function loadBuyers() {
+            const res = await api("/api/buyers");
+            buyers = res.data || [];
+            document.getElementById("buyerCount").innerText = `(${buyers.length})`;
+            document.getElementById("buyerTableBody").innerHTML = buyers.map((b) => `
+                <tr>
+                    <td class="py-2.5 pr-4 font-semibold text-white">${esc(b.buyer_name)}</td>
+                    <td class="py-2.5 pr-4 text-slate-300 text-xs">${esc(b.target_sector)}</td>
+                    <td class="py-2.5 pr-4 font-mono text-xs text-slate-300">${band(b)}</td>
+                    <td class="py-2.5 text-xs text-slate-400">${esc(b.geographic_focus)}</td>
+                </tr>`).join("");
+            document.getElementById("newBuyer").innerHTML = buyers.map((b) =>
+                `<option value="${esc(b.buyer_name)}">${esc(b.buyer_name)} — ${esc(b.target_sector)}</option>`).join("");
+        }
+
+        async function loadDeals() {
+            const res = await api("/api/deals");
+            deals = res.data || [];
+            renderPipeline();
+            renderSteps();
+            refreshMetrics();
+        }
+
+        // ---------- screening ----------
+        function tryExample(url) {
+            document.getElementById("screenInput").value = url;
+            runScreen();
+        }
+
+        async function runScreen() {
+            const input = document.getElementById("screenInput");
+            const query = input.value.trim();
+            if (!query) { input.focus(); toast("Paste a website or type a company name"); return; }
+            const btn = document.getElementById("screenBtn");
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="h-4 w-4 spin"></i><span>Reading site…</span>`;
+            icons();
+            const box = document.getElementById("screenResult");
+            box.classList.remove("hidden");
+            box.innerHTML = `<div class="glass-panel rounded-2xl p-5 text-sm text-slate-400">Reading the website and scoring ${buyers.length} buyer mandates…</div>`;
+            try {
+                const res = await api("/api/match", { method: "POST", body: { url: query } });
+                lastProfile = res.profile;
+                lastMatches = res.matches || [];
+                renderScreenResult();
+                renderSteps();
+            } catch (e) {
+                box.innerHTML = `<div class="glass-panel rounded-2xl p-5 text-sm text-rose-300">Could not screen that company: ${esc(e.message)}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="search" class="h-4 w-4"></i><span>Screen</span>`;
+                icons();
+                refreshMetrics();
+            }
+        }
+
+        function renderScreenResult() {
+            const p = lastProfile || {};
+            const warn = p.company_id && !p.fetched
+                ? `<div class="text-xs text-slate-300 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">Scored from the company dataset. Enrich it live on the Data sources tab to confirm the sector on its website.</div>`
+                : !p.fetched
+                ? `<div class="text-xs text-amber-200 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">We couldn't read this website, so the profile is based on the name only. Try the full URL (https://…).</div>`
+                : !p.verified
+                ? `<div class="text-xs text-amber-200 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">The site didn't show a clear sector. Treat the scores below as rough.</div>`
+                : "";
+            const evidence = (p.evidence || []).length
+                ? `<div class="text-[11px] text-slate-500">Found on the site: ${p.evidence.map((k) => `<span class="text-slate-300">${esc(k)}</span>`).join(", ")}</div>` : "";
+
+            const alreadyIn = new Set(deals.filter((d) => d.target === p.company_name).map((d) => d.buyer_id));
+            const list = lastMatches.map((m, i) => {
+                const f = fit(m.score);
+                const added = alreadyIn.has(m.buyer_id);
+                const primary = i === 0 && m.score >= 55;
+                const btnClass = added
+                    ? "bg-slate-800 text-slate-500 cursor-default"
+                    : primary ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950" : "bg-slate-800 hover:bg-slate-700 text-slate-200";
+                const btnLabel = added ? "In pipeline" : m.score < 55 ? "Add anyway" : "Add to pipeline";
+                return `<div class="py-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex gap-3 min-w-0">
+                            ${radarSvg(m, 88)}
+                            <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold text-white">${esc(m.buyer_name)}</span>
+                                ${i === 0 ? `<span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Best match</span>` : ""}
+                            </div>
+                            <div class="text-[11px] text-slate-500 truncate">${esc(m.target_sector)} · ${esc(m.geographic_focus)}</div>
+                            <div class="text-[11px] mt-0.5 ${m.score >= 55 ? "text-slate-300" : "text-rose-200/80"}">${esc(m.summary || (m.score >= 55 ? (m.reasons || [])[0] : (m.gaps || [])[0]) || "")}</div>
+                            <div class="mt-1">${checkDots(m.checks)}</div>
+                            <div class="mt-1 space-y-1">${checkBars(m)}</div>
+                            <div class="mt-1">${stackedParts(m)}</div>
+                            ${ebitdaStrip(m)}
+                            </div>
+                        </div>
+                        <button ${added ? "disabled" : `onclick="addMatch(${m.buyer_id})"`} class="${btnClass} text-xs font-bold px-3 py-1.5 rounded-lg shrink-0 cursor-pointer">${btnLabel}</button>
+                    </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden"><div class="${f.bar} h-full" style="width:${m.score}%"></div></div>
+                        <span class="text-[11px] font-semibold ${f.text} w-24 text-right">${f.label} · ${m.score}</span>
+                    </div>
+                    <details class="mt-1">
+                        <summary class="text-[11px] text-slate-500 hover:text-slate-300 cursor-pointer">Why this score</summary>
+                        <ul class="mt-1 space-y-0.5 text-[11px]">
+                            ${(m.reasons || []).map((r) => `<li class="text-slate-300">+ ${esc(r)}</li>`).join("")}
+                            ${(m.gaps || []).map((g) => `<li class="text-amber-200">? ${esc(g)}</li>`).join("")}
+                        </ul>
+                    </details>
+                </div>`;
+            }).join("");
+
+            document.getElementById("screenResult").innerHTML = `
+                <div class="glass-panel rounded-2xl p-5 space-y-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-lg font-bold text-white">${esc(p.company_name)}</div>
+                                ${p.source_url ? `<a href="${esc(p.source_url)}" target="_blank" rel="noopener" class="text-[11px] text-slate-500 hover:text-teal-300">${esc(p.source_url)}</a>` : ""}
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${p.verified ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-400"}">${p.verified ? "Sector found" : p.company_id ? "From dataset" : "Unclear"}</span>
+                    </div>
+                    <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                        <div><dt class="text-slate-500">Sector</dt><dd class="text-slate-200">${esc(p.sector)}</dd></div>
+                        <div><dt class="text-slate-500">EBITDA</dt><dd class="text-slate-200">${esc(p.ebitda)}</dd></div>
+                        <div><dt class="text-slate-500">Offering</dt><dd class="text-slate-200">${esc(p.products)}</dd></div>
+                        <div><dt class="text-slate-500">Customers</dt><dd class="text-slate-200">${esc(p.customers)}</dd></div>
+                    </dl>
+                    ${evidence}
+                    ${warn}
+                </div>
+                <div class="glass-panel rounded-2xl p-5">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-white">Which buyers fit?</h3>
+                        <button onclick="pushToSellSide()" class="text-[11px] font-semibold text-teal-300 hover:text-teal-200 cursor-pointer">Add as sell-side owner</button>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-1">The triangle is sector · region · size. The stacked bar is the 100-point score (50+20+20+10). The dot plot is the distribution across mandates.</p>
+                    <div class="mt-3 mb-3">${matchStatsPanel(lastMatches, { title: "Score distribution across mandates" })}</div>
+                    <div class="mt-3 mb-2">${matchBarChart(lastMatches)}</div>
+                    <div class="divide-y divide-slate-800/70">${list || `<div class="py-3 text-xs text-slate-500">No buyer mandates loaded.</div>`}</div>
+                </div>`;
+            icons();
+        }
+
+        async function addMatch(buyerId) {
+            if (!lastProfile) return;
+            const m = lastMatches.find((x) => x.buyer_id === buyerId);
+            if (m && m.score < 55 && !confirm(`${m.buyer_name} is a weak fit (${m.score}/100). Add it to the pipeline anyway?`)) return;
+            try {
+                const res = await api("/api/deals/from-match", { method: "POST", body: { buyer_id: buyerId, profile: lastProfile } });
+                await loadDeals();
+                renderScreenResult();
+                toast(`Added ${res.data.target} for ${res.data.buyer}`);
+                openDeal(res.data.id);
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        async function pushToSellSide() {
+            if (!lastProfile) return;
+            try {
+                await api("/api/targets", { method: "POST", body: { profile: lastProfile } });
+                toast(`${lastProfile.company_name} added to sell-side owners`);
+                refreshMetrics();
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        // ---------- pipeline ----------
+        function renderPipeline() {
+            const q = (document.getElementById("searchInput").value || "").toLowerCase();
+            const rows = deals.filter((d) => `${d.buyer} ${d.target} ${d.sector}`.toLowerCase().includes(q));
+            const body = document.getElementById("pipelineBody");
+            if (!deals.length) {
+                body.innerHTML = `<div class="py-10 text-center">
+                    <div class="text-sm text-slate-300 font-semibold">No matches yet</div>
+                    <div class="text-xs text-slate-500 mt-1">Screen a company on the left, then add its best-fit buyer here.</div></div>`;
+                return;
+            }
+            if (!rows.length) { body.innerHTML = `<div class="py-6 text-center text-xs text-slate-500">Nothing matches "${esc(q)}".</div>`; return; }
+            body.innerHTML = rows.map((d) => {
+                const f = fit(d.score);
+                return `<button onclick="openDeal(${d.id})" class="w-full text-left py-3 px-2 -mx-2 rounded-lg hover:bg-slate-800/50 flex items-center gap-4 cursor-pointer">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-semibold text-white truncate">${esc(d.target)} <span class="text-slate-500 font-normal">for</span> ${esc(d.buyer)}</div>
+                        <div class="text-[11px] text-slate-500 truncate">${esc(d.sector)}${d.owner_name ? " · Owner: " + esc(d.owner_name) : ""}</div>
+                    </div>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md ${f.chip} shrink-0">${d.score ?? "–"}</span>
+                    <div class="w-36 shrink-0 hidden sm:block">
+                        ${stageDots(d.stage)}
+                        <div class="text-[11px] text-slate-400 mt-1">${esc(d.stage)}</div>
+                    </div>
+                    <i data-lucide="chevron-right" class="h-4 w-4 text-slate-600 shrink-0"></i>
+                </button>`;
+            }).join("");
+            icons();
+        }
+
+        // ---------- drawer: buy-side deal ----------
+        function openDrawer() {
+            document.getElementById("drawer").classList.remove("translate-x-full");
+            document.getElementById("drawerBackdrop").classList.remove("hidden");
+        }
+        function closeDrawer() {
+            document.getElementById("drawer").classList.add("translate-x-full");
+            document.getElementById("drawerBackdrop").classList.add("hidden");
+            drawer = null;
+        }
+
+        function openDeal(id, kind) {
+            const d = deals.find((x) => x.id === id);
+            if (!d) return;
+            if (!drafts[id]) drafts[id] = { ic: d.proposal || "", owner: "" };
+            drawer = { mode: "deal", id, kind: kind || drawer?.kind || "ic" };
+            renderDealDrawer();
+            openDrawer();
+        }
+
+        function renderDealDrawer() {
+            const d = deals.find((x) => x.id === drawer.id);
+            if (!d) { closeDrawer(); return; }
+            const f = fit(d.score);
+            const i = stageIndex(d.stage);
+            const next = STAGES[i + 1];
+            const kind = drawer.kind;
+            const text = drafts[d.id][kind] || "";
+            const tabBtn = (k, label) => `<button onclick="switchKind('${k}')" class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${kind === k ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:text-white"}">${label}</button>`;
+
+            document.getElementById("drawerContent").innerHTML = `
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Buy-side match</div>
+                        <h3 class="text-xl font-bold text-white mt-1">${esc(d.target)}</h3>
+                        <div class="text-sm text-slate-400">for <span class="text-slate-200 font-semibold">${esc(d.buyer)}</span></div>
+                        ${d.source_url ? `<a href="${esc(d.source_url)}" target="_blank" rel="noopener" class="text-[11px] text-slate-500 hover:text-teal-300">${esc(d.source_url)}</a>` : ""}
+                    </div>
+                    <button onclick="closeDrawer()" class="text-slate-400 hover:text-white cursor-pointer"><i data-lucide="x" class="h-5 w-5"></i></button>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 text-xs">
+                    <div class="bg-slate-800/60 rounded-xl p-3"><div class="text-slate-500">Fit</div><div class="font-bold ${f.text}">${f.label}</div><div class="text-slate-400">${d.score ?? "–"}/100</div></div>
+                    <div class="bg-slate-800/60 rounded-xl p-3"><div class="text-slate-500">Sector</div><div class="text-slate-200">${esc(d.sector)}</div></div>
+                    <div class="bg-slate-800/60 rounded-xl p-3"><div class="text-slate-500">EBITDA</div><div class="text-slate-200">${esc(d.ebitda)}</div></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 text-xs">
+                    <div><div class="font-semibold text-slate-300 mb-1">Why it fits</div>
+                        <ul class="space-y-1">${(d.reasons || []).map((r) => `<li class="text-slate-400">+ ${esc(r)}</li>`).join("") || `<li class="text-slate-500">—</li>`}</ul></div>
+                    <div><div class="font-semibold text-slate-300 mb-1">Confirm with the owner</div>
+                        <ul class="space-y-1">${(d.gaps || []).map((g) => `<li class="text-amber-200/90">? ${esc(g)}</li>`).join("") || `<li class="text-slate-500">Nothing flagged</li>`}</ul></div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm font-semibold text-white">Stage</div>
+                        ${next ? `<button onclick="setStage(${d.id}, '${next}')" class="text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-1.5 rounded-lg cursor-pointer">Move to: ${esc(next)} →</button>`
+                               : `<span class="text-xs font-bold text-emerald-400">Mandate conversation reached</span>`}
+                    </div>
+                    <div class="grid grid-cols-5 gap-1">
+                        ${STAGES.map((s, n) => `<button onclick="setStage(${d.id}, '${s}')" title="${esc(STAGE_HELP[s])}"
+                            class="text-left cursor-pointer"><div class="h-1.5 rounded-full ${n <= i ? "bg-emerald-400" : "bg-slate-700 hover:bg-slate-600"}"></div>
+                            <div class="text-[10px] mt-1 leading-tight ${n === i ? "text-white font-semibold" : "text-slate-500"}">${esc(s)}</div></button>`).join("")}
+                    </div>
+                    <div class="text-[11px] text-slate-500">${esc(STAGE_HELP[d.stage])}</div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="text-sm font-semibold text-white">Outreach</div>
+                    <div class="flex bg-slate-800/60 rounded-xl p-1 gap-1">
+                        ${tabBtn("ic", "Note to buyer's IC")}
+                        ${tabBtn("owner", "Warm-up to owner")}
+                    </div>
+                    ${kind === "owner" ? `
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Owner or CEO name</label>
+                            <input id="ownerName" value="${esc(d.owner_name)}" placeholder="e.g. Mikael Lindström" onchange="saveOwner(${d.id}, this.value)"
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                        </div>` : `<div class="text-[11px] text-slate-500">Internal note for ${esc(d.buyer)}'s investment committee: why this company, and what to confirm.</div>`}
+                    <textarea id="draftText" rows="12" oninput="drafts[${d.id}]['${kind}'] = this.value"
+                        placeholder="${kind === "owner" ? "Click Write draft to create a personal warm-up." : "Click Write draft to create the IC note."}"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-emerald-500">${esc(text)}</textarea>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="writeDraft(${d.id})" id="writeBtn" class="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs cursor-pointer flex items-center gap-1">
+                            <i data-lucide="sparkles" class="h-3.5 w-3.5"></i>${text ? "Rewrite draft" : "Write draft"}</button>
+                        <button onclick="copyDraft()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-2 rounded-lg text-xs cursor-pointer flex items-center gap-1">
+                            <i data-lucide="copy" class="h-3.5 w-3.5"></i>Copy</button>
+                        <button onclick="saveDraft(${d.id})" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-2 rounded-lg text-xs cursor-pointer flex items-center gap-1">
+                            <i data-lucide="save" class="h-3.5 w-3.5"></i>Save edits</button>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-800">
+                    <button onclick="deleteDeal(${d.id})" class="text-xs text-rose-300 hover:text-rose-200 cursor-pointer">Remove from pipeline</button>
+                </div>`;
+            icons();
+        }
+
+        function switchKind(kind) { drawer.kind = kind; renderDealDrawer(); }
+
+        async function setStage(id, stage) {
+            try {
+                await api(`/api/deals/${id}`, { method: "PATCH", body: { stage } });
+                await loadDeals();
+                if (drawer?.mode === "deal") renderDealDrawer();
+                toast(`Stage: ${stage}`);
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        async function saveOwner(id, name) {
+            try {
+                await api(`/api/deals/${id}`, { method: "PATCH", body: { owner_name: name } });
+                await loadDeals();
+                if (drawer?.mode === "deal") renderDealDrawer();
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        async function writeDraft(id) {
+            const kind = drawer.kind;
+            const ownerName = document.getElementById("ownerName")?.value?.trim();
+            if (kind === "owner" && !ownerName && !confirm("No owner name yet. The message will start with \"Hi there\". Continue?")) return;
+            const btn = document.getElementById("writeBtn");
+            btn.disabled = true;
+            btn.innerText = "Writing…";
+            try {
+                const res = await api(`/api/deals/${id}/outreach`, { method: "POST", body: { kind, owner_name: ownerName || undefined } });
+                drafts[id][kind] = res.outreach_message;
+                await loadDeals();
+                renderDealDrawer();
+                toast(kind === "owner" ? "Owner warm-up drafted" : "IC note drafted");
+            } catch (e) {
+                toast(e.message, "error");
+                btn.disabled = false;
+            }
+        }
+
+        async function saveDraft(id) {
+            const text = document.getElementById("draftText").value;
+            try {
+                await api(`/api/deals/${id}`, { method: "PATCH", body: { proposal: text } });
+                toast("Draft saved");
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        async function copyDraft() {
+            const text = document.getElementById("draftText").value;
+            if (!text) { toast("Nothing to copy yet"); return; }
+            try { await navigator.clipboard.writeText(text); toast("Copied to clipboard"); }
+            catch { document.getElementById("draftText").select(); toast("Press Ctrl+C to copy"); }
+        }
+
+        async function deleteDeal(id) {
+            if (!confirm("Remove this match from the pipeline?")) return;
+            try {
+                await api(`/api/deals/${id}`, { method: "DELETE" });
+                closeDrawer();
+                await loadDeals();
+                if (lastProfile) renderScreenResult();
+                toast("Removed");
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        // ---------- manual add ----------
+        function openAddModal() {
+            document.getElementById("addModal").classList.remove("hidden");
+            document.getElementById("addModal").classList.add("flex");
+            document.getElementById("newTarget").focus();
+        }
+        function closeAddModal() {
+            document.getElementById("addModal").classList.remove("flex");
+            document.getElementById("addModal").classList.add("hidden");
+        }
+        async function saveNewDeal() {
+            const buyer = document.getElementById("newBuyer").value;
+            const target = document.getElementById("newTarget").value.trim();
+            if (!target) { toast("Enter a target company"); return; }
+            try {
+                const res = await api("/api/deals", { method: "POST", body: { buyer, target } });
+                closeAddModal();
+                document.getElementById("newTarget").value = "";
+                await loadDeals();
+                toast(`Added ${target} for ${buyer}`);
+                openDeal(res.data.id);
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        // ---------- sell-side ----------
+        async function loadOwners() {
+            const res = await api("/api/targets");
+            owners = res.data || [];
+            document.getElementById("ownerBody").innerHTML = owners.map((t) => `
+                <button onclick="openOwner(${t.id})" class="w-full text-left py-3 px-2 -mx-2 rounded-lg hover:bg-slate-800/50 flex items-center gap-4 cursor-pointer">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-semibold text-white truncate">${esc(t.company)}</div>
+                        <div class="text-[11px] text-slate-500 truncate">${esc(t.ceo)} · ${esc(t.revenue_split)}</div>
+                    </div>
+                    <span class="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 shrink-0">${esc(t.region)}</span>
+                    <span class="font-mono text-xs text-emerald-400 w-20 text-right shrink-0">${esc(t.valuation_est)}</span>
+                    <span class="text-[11px] text-slate-400 w-28 text-right shrink-0 hidden sm:block">${esc(t.status)}</span>
+                    <i data-lucide="chevron-right" class="h-4 w-4 text-slate-600 shrink-0"></i>
+                </button>`).join("") || `<div class="py-10 text-center text-xs text-slate-500">No owners yet.</div>`;
+            icons();
+        }
+
+        function openOwner(id) {
+            const t = owners.find((x) => x.id === id);
+            if (!t) return;
+            drawer = { mode: "owner", id };
+            document.getElementById("drawerContent").innerHTML = `
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Sell-side owner</div>
+                        <h3 class="text-xl font-bold text-white mt-1">${esc(t.company)}</h3>
+                        <div class="text-sm text-slate-400">${esc(t.ceo)} · ${esc(t.region)} · via ${esc(t.channel)}</div>
+                    </div>
+                    <button onclick="closeDrawer()" class="text-slate-400 hover:text-white cursor-pointer"><i data-lucide="x" class="h-5 w-5"></i></button>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="bg-slate-800/60 rounded-xl p-3"><div class="text-slate-500">Revenue mix</div><div class="text-slate-200">${esc(t.revenue_split)}</div></div>
+                    <div class="bg-slate-800/60 rounded-xl p-3"><div class="text-slate-500">Customers</div><div class="text-slate-200">${esc(t.top_clients)}</div></div>
+                    <div class="bg-slate-800/60 rounded-xl p-3"><div class="text-slate-500">Est. valuation</div><div class="text-emerald-400 font-mono">${esc(t.valuation_est)}</div></div>
+                    <div class="bg-slate-800/60 rounded-xl p-3"><div class="text-slate-500">Status</div><div class="text-slate-200">${esc(t.status)}</div></div>
+                </div>
+                <div class="space-y-3">
+                    <div class="text-sm font-semibold text-white">Warm-up message</div>
+                    <div class="text-[11px] text-slate-500">${t.region === "DACH" ? "German-market tone: formal, LinkedIn first, then a call." : "Nordic tone: direct and short, buyer-demand-led."}</div>
+                    <textarea id="draftText" rows="12" placeholder="Click Write warm-up." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-emerald-500"></textarea>
+                    <div class="flex gap-2">
+                        <button onclick="writeOwnerDraft(${t.id})" id="writeBtn" class="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs cursor-pointer flex items-center gap-1">
+                            <i data-lucide="sparkles" class="h-3.5 w-3.5"></i>Write warm-up</button>
+                        <button onclick="copyDraft()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-2 rounded-lg text-xs cursor-pointer flex items-center gap-1">
+                            <i data-lucide="copy" class="h-3.5 w-3.5"></i>Copy</button>
+                    </div>
+                </div>`;
+            icons();
+            openDrawer();
+        }
+
+        async function writeOwnerDraft(id) {
+            try {
+                const res = await api(`/api/generate-outreach/${id}`, { method: "POST" });
+                document.getElementById("draftText").value = res.outreach_message;
+                toast("Warm-up drafted");
+                loadOwners();
+                refreshMetrics();
+            } catch (e) { toast(e.message, "error"); }
+        }
+
+        // ---------- boot ----------
+        document.getElementById("screenInput").addEventListener("keydown", (e) => { if (e.key === "Enter") runScreen(); });
+        document.getElementById("newTarget").addEventListener("keydown", (e) => { if (e.key === "Enter") saveNewDeal(); });
+        document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeDrawer(); closeAddModal(); } });
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            renderSteps();
+            setTab("prospects");
+            try {
+                await loadBuyers();
+                renderBookMatchStats();
+                await loadDeals();
+            } catch (e) {
+                toast("Could not reach the server. Is src/main.py running?", "error");
+            }
+            icons();
+        });
+    </script>
+</body>
+</html>

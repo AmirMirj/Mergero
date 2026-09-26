@@ -7,7 +7,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import * as db from "./db.js";
 import * as mail from "./mail.js";
-import { prefilterBuyers, track } from "./agents.js";
+import { prefilterBuyers, track, parse } from "./agents.js";
 import { MESSAGING_PRINCIPLES, ICP } from "./playbook.js";
 
 // ---------- buyer contacts (mock until the MGX buyer network is connected) ----------
@@ -84,17 +84,14 @@ export async function draftBuyerNote(buyer, company, settings) {
   const s = settings.sender;
   const contact = ensureBuyerContacts(buyer)[0];
   const m = (company.matches || []).find((x) => x.buyer_id === buyer.id);
-  const res = await client(settings).messages.parse({
-    model: settings.model || "claude-opus-5",
+  // Goes through agents.parse so the model provider switch (Claude or Verda's Mistral) applies here too.
+  return parse(settings, {
+    schema: BuyerNoteSchema,
+    effort: "medium",
     max_tokens: 4000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "medium", format: zodOutputFormat(BuyerNoteSchema) },
     system: `You write a short, confidential note from ${s.name} (${s.title}, ${s.firm}) to ${contact.name} (${contact.role}) at a buyer in Mergero's off-market network, about a company whose owner is in a warm, confidential conversation with us. Strictly anonymised: no company name, city, product or brand names, owner name, website, or exact financial figures — use bands and sector language only. State why it fits this buyer's thesis, the owner's situation in one line (e.g. succession, growth partner sought), the stage (early conversation, first call held), and ask one question: would they like to see a blind teaser under NDA. Same house style as owner outreach: ${settings.style_rules}\n${MESSAGING_PRINCIPLES}`,
-    messages: [{ role: "user", content: `Buyer: ${buyer.name} (${buyer.buyer_type}). Thesis: ${buyer.thesis}. Sectors: ${(buyer.sectors || []).join(", ")}. Deal types: ${(buyer.deal_types || []).join(", ")}.\n\nOpportunity (internal facts, anonymise them): ${company.name}, ${company.industry}, ${company.country}, revenue ${eurM(company.revenue_eur)}, EBITDA ${eurM(company.ebitda_eur)}, ${company.ownership_type}, owner ${company.owner?.age ? "aged " + company.owner.age : "age unknown"}, stage ${company.stage}. Fit ${m?.fit ?? "n/a"}: ${m?.reason || "n/a"}. Why now: ${company.score?.why_now || "n/a"}.\n\nSign as ${s.name}, ${s.title}, ${s.firm}.` }],
+    user: `Buyer: ${buyer.name} (${buyer.buyer_type}). Thesis: ${buyer.thesis}. Sectors: ${(buyer.sectors || []).join(", ")}. Deal types: ${(buyer.deal_types || []).join(", ")}.\n\nOpportunity (internal facts, anonymise them): ${company.name}, ${company.industry}, ${company.country}, revenue ${eurM(company.revenue_eur)}, EBITDA ${eurM(company.ebitda_eur)}, ${company.ownership_type}, owner ${company.owner?.age ? "aged " + company.owner.age : "age unknown"}, stage ${company.stage}. Fit ${m?.fit ?? "n/a"}: ${m?.reason || "n/a"}. Why now: ${company.score?.why_now || "n/a"}.\n\nSign as ${s.name}, ${s.title}, ${s.firm}.`,
   });
-  track(res.usage, settings.model || "claude-opus-5", "buyer_note");
-  if (res.stop_reason === "refusal" || !res.parsed_output) throw new Error("Buyer note could not be drafted; please retry.");
-  return res.parsed_output;
 }
 
 // ---------- one-click pairing (seller ↔ buyer) with a justified rationale ----------

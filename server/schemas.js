@@ -130,12 +130,12 @@ export const MatchRerankSchema = z.object({
 
 export const OutreachSchema = z.object({
   messages: z.array(z.object({
-    step: z.number().int().min(1).max(3),
+    step: z.number().int().min(1).max(5),
     send_after_days: z.number().int().min(0),
     channel: z.enum(["email", "linkedin", "call_script"]),
     subject: z.string().describe("Email subject; empty string for linkedin/call_script"),
     body: z.string(),
-  })).min(1).describe("Exactly three messages: steps 1, 2 and 3"),
+  })).min(1).describe("One message per step of the requested sequence, in order (step 1 first)"),
 });
 
 export const HumanizerSchema = z.object({

@@ -13,6 +13,8 @@ import * as humanlint from "./humanlint.js";
 import * as learning from "./learning.js";
 import * as publicDemand from "./public_demand.js";
 import * as buyside from "./buyside.js";
+import * as desk from "./desk/routes.js";
+import * as llmProvider from "./llm.js";
 import * as mgx from "./mgx.js";
 
 // Loaded on first use so the server still starts if a research dependency (cheerio, puppeteer-core) is missing.
@@ -24,6 +26,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 // The raw body is kept for webhook signature checks (server/mail.js verifySvix).
 app.use(express.json({ limit: "5mb", verify: (req, _res, buf) => { req.rawBody = buf.toString("utf8"); } }));
+// Amir's Origination Desk is the front door ("/"); our own console lives at /engine and talks to /api/engine/… .
+desk.register(app, { baseUrl: process.env.BASE_URL || `http://localhost:${Number(process.env.PORT || 3000)}` });
+app.get("/engine", (req, res) => res.sendFile(path.join(here, "..", "public", "index.html")));
 app.use(express.static(path.join(here, "..", "public")));
 
 const PORT = Number(process.env.PORT || 3000);
@@ -853,6 +858,13 @@ app.delete("/api/buyers/:id", wrap(async (req, res) => {
 
 // ---------------- settings ----------------
 app.get("/api/settings", (req, res) => res.json(db.publicSettings()));
+// Model provider status: which provider is active and whether Verda's Mistral endpoint answers.
+app.get("/api/llm/status", wrap(async (req, res) => {
+  const s = db.load().settings;
+  const active = llmProvider.provider(s);
+  const verda = llmProvider.verdaConfigured(s) ? await llmProvider.verdaPing(s) : { ok: false, configured: false, reason: "not configured" };
+  res.json({ provider: active, anthropic_configured: Boolean(s.api_key || process.env.ANTHROPIC_API_KEY), verda, fallback: llmProvider.fallbackAllowed(s), web_tools: llmProvider.webToolsAvailable(s), model: active === "verda" ? llmProvider.verdaConfig(s).model : s.model });
+}));
 app.put("/api/settings", wrap(async (req, res) => {
   const s = db.load().settings;
   const b = req.body || {};
@@ -860,6 +872,11 @@ app.put("/api/settings", wrap(async (req, res) => {
   if (typeof b.workspace_id === "string") s.workspace_id = b.workspace_id.trim();
   if (typeof b.voice_samples === "string") s.voice_samples = b.voice_samples.trim().slice(0, 12000);
   if (typeof b.demo_email === "string") s.demo_email = b.demo_email.trim();
+  if (typeof b.llm_provider === "string") s.llm_provider = b.llm_provider.trim().toLowerCase();
+  if (typeof b.verda_base_url === "string") s.verda_base_url = b.verda_base_url.trim();
+  if (typeof b.verda_api_key === "string" && b.verda_api_key.trim()) s.verda_api_key = b.verda_api_key.trim();
+  if (typeof b.verda_model === "string") s.verda_model = b.verda_model.trim();
+  if (b.llm_fallback === true || b.llm_fallback === false || b.llm_fallback === null) s.llm_fallback = b.llm_fallback;
   if (b.lint_threshold != null && !Number.isNaN(Number(b.lint_threshold))) s.lint_threshold = Math.max(0, Math.min(100, Number(b.lint_threshold)));
   if (b.model) s.model = b.model;
   if (b.sender) s.sender = { ...s.sender, ...b.sender };
