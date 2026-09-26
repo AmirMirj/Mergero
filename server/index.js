@@ -957,10 +957,14 @@ buyside.register(app);      // buy-side mandate generation: thesis → registry 
 agents.hydrateUsage(db.load().usage);
 agents.onUsage((u) => { db.load().usage = u; db.save(); });
 
-app.listen(PORT, () => {
-  console.log(`Mergero Origination Engine → ${BASE_URL} (storage: ${store}${WATCH_HOURS > 0 ? `, watch every ${WATCH_HOURS}h` : ""})`);
-  console.log(db.load().settings.api_key ? "Anthropic API key: configured" : "Anthropic API key: NOT set (add it in Settings or .env)");
-  console.log(mail.configured(db.load().settings)
-    ? `Email: Resend configured (from ${mail.config(db.load().settings).from}); webhook ${BASE_URL}/api/mail/inbound/resend`
-    : "Email: not configured (Send opens a mailto: link; set RESEND_API_KEY + RESEND_FROM or fill in Settings → Email delivery)");
-});
+export default app;
+
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Mergero Origination Engine → ${BASE_URL} (storage: ${store}${WATCH_HOURS > 0 ? `, watch every ${WATCH_HOURS}h` : ""})`);
+    console.log(db.load().settings.api_key ? "Anthropic API key: configured" : "Anthropic API key: NOT set (add it in Settings or .env)");
+    console.log(mail.configured(db.load().settings)
+      ? `Email: Resend configured (from ${mail.config(db.load().settings).from}); webhook ${BASE_URL}/api/mail/inbound/resend`
+      : "Email: not configured (Send opens a mailto: link; set RESEND_API_KEY + RESEND_FROM or fill in Settings → Email delivery)");
+  });
+}

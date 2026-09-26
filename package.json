@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "server/index.js",
   "description": "Sell-side M&A deal origination copilot for Mergero — enrich, score, match, humanized outreach, reply triage, owner intake.",
   "scripts": {
     "start": "node server/index.js",

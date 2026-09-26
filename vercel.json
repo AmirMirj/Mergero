@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "express",
+  "functions": {
+    "index.js": {
+      "includeFiles": "{data,public,server}/**",
+      "maxDuration": 60
+    }
+  }
+}

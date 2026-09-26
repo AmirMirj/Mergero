@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 import { TIME_SAVED_MINUTES } from "./playbook.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(here, "..", "data");
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : process.env.VERCEL
+    ? path.join("/tmp", "mergero-data")
+    : path.join(here, "..", "data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
 const SEED_PATH = path.join(here, "..", "data", "seed.json");
 
