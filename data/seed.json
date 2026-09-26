@@ -1,0 +1,2546 @@
+{
+  "companies": [
+    {
+      "id": "c_01",
+      "name": "Pirkan Fluid Systems Oy",
+      "country": "FI",
+      "city": "Tampere",
+      "website": "https://www.pirkanfluid-demo.fi",
+      "industry": "Industrial equipment",
+      "revenue_eur": 14200000,
+      "ebitda_eur": 2100000,
+      "employees": 78,
+      "founded": 1994,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Jukka Rantanen",
+        "title": "CEO & Founder",
+        "age": 61,
+        "tenure_years": 32,
+        "email": "jukka.rantanen@pirkanfluid-demo.fi",
+        "linkedin": "https://www.linkedin.com/in/jukka-rantanen-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "outreach_ready",
+      "channel": "email",
+      "enrichment": {
+        "summary": "Pirkan Fluid Systems Oy designs and manufactures process pumps and chemical dosing systems for pulp and paper mills, municipal water utilities and chemical process plants. Founded in Tampere in 1994 by Jukka Rantanen, the company pairs its own pump ranges with an installed-base service business run under the PFS Care programme. About 78 employees and revenue of roughly 14 M€.",
+        "products": [
+          "Virta series centrifugal process pumps",
+          "Kierto slurry and stock pumps for pulp and paper",
+          "PFS-Dos chemical dosing skids",
+          "PFS Care service contracts, spare parts and pump audits"
+        ],
+        "customers": [
+          "Finnish pulp and paper mill groups (two groups estimated at 30 percent or more of revenue)",
+          "Municipal water and wastewater utilities across Finland",
+          "Chemical and mining process plants in Finland and Sweden",
+          "A Swedish pulp mill, first export project of scale (2025)"
+        ],
+        "positioning": "Mid-priced Nordic specialist competing with global pump majors on application know-how, fast local service and Finnish manufacturing; strongest where process fluids are abrasive or corrosive.",
+        "recent_news": [
+          "Commissioned a new 2,400 m2 assembly hall in Tampere in 2024",
+          "Delivered the first PFS-Dos dosing skids to a Swedish pulp mill in 2025, the first export order of scale",
+          "Renewed a five-year frame agreement with a Finnish municipal water utility group in 2025"
+        ],
+        "leadership": "Jukka Rantanen, founder and CEO (61), owns 100 percent. Long-tenured non-owner management: Sales Director Marko Lehto (since 2005) and Production Manager Kaisa Nieminen (since 2011). No family members in the business according to the website.",
+        "signals": [
+          "Owner 61, founder since 1994, 100 percent ownership",
+          "No successor named; no family members in management",
+          "Estimated 30 to 35 percent recurring service and spares revenue",
+          "Flat revenue 2023 to 2025 around 14 M€, margins stable",
+          "Recent capex into a new assembly hall (2024)",
+          "First export order of scale in 2025"
+        ],
+        "data_gaps": [
+          "Revenue split by product line and service unknown",
+          "Top-10 client concentration unknown",
+          "Ownership of the Tampere property (owned or leased) unknown"
+        ],
+        "sources": [
+          "https://www.pirkanfluid-demo.fi",
+          "https://www.pirkanfluid-demo.fi/en/company",
+          "https://www.pirkanfluid-demo.fi/en/news"
+        ],
+        "confidence": "medium",
+        "enriched_at": "2026-09-22T09:14:00Z"
+      },
+      "score": {
+        "readiness": 78,
+        "attractiveness": 71,
+        "valuation_band_eur": {
+          "low": 11500000,
+          "high": 16000000
+        },
+        "meets_minimum": true,
+        "why_now": "Jukka Rantanen is 61 and has run the company for 32 years without a named successor or family member in the business. Revenue has been stable at around 14 M€ with 15 percent EBITDA margins, a growing service book and a fresh export reference, which is the profile Nordic industrial buyers are paying up for in 2026. The recent capex into the assembly hall suggests he has not started a process yet, so this is the window to be the first adviser in the room rather than one of several.",
+        "signals": [
+          {
+            "signal": "Owner age 61, founder since 1994",
+            "direction": "positive",
+            "weight": "high",
+            "note": "Typical exit window for Finnish founder-owners is 60 to 65; no successor identified in public sources."
+          },
+          {
+            "signal": "No family member or second-generation manager in leadership",
+            "direction": "positive",
+            "weight": "medium",
+            "note": "Management consists of long-tenured non-owner managers, so succession is likely to be external."
+          },
+          {
+            "signal": "Recurring service revenue from PFS Care contracts",
+            "direction": "positive",
+            "weight": "high",
+            "note": "Estimated 30 to 35 percent of revenue is service and spares, valued highly by both PE and strategic buyers."
+          },
+          {
+            "signal": "First export order of scale in 2025",
+            "direction": "positive",
+            "weight": "medium",
+            "note": "Proof of exportability supports a buyer growth story beyond Finland."
+          },
+          {
+            "signal": "New assembly hall commissioned 2024",
+            "direction": "neutral",
+            "weight": "low",
+            "note": "Recent capex shows the owner is still investing, which may point to a 2 to 3 year horizon rather than an immediate exit."
+          },
+          {
+            "signal": "Flat revenue 2023 to 2025",
+            "direction": "negative",
+            "weight": "medium",
+            "note": "Organic growth story is weak; valuation will rest on margin, installed base and service mix."
+          }
+        ],
+        "risks": [
+          "Customer concentration in Finnish pulp and paper: two mill groups may exceed 30 percent of revenue",
+          "Founder is the main technical sales relationship with key accounts",
+          "Cyclical capex in pulp and paper could soften 2027 order intake"
+        ],
+        "recommended_timing": "now",
+        "scored_at": "2026-09-22T09:16:00Z"
+      },
+      "matches": [
+        {
+          "buyer_id": "b_01",
+          "buyer_name": "Nordic lower-mid-market PE fund",
+          "fit": 86,
+          "reason": "Fits the platform thesis: Nordic industrial niche, 12 to 16 M€ valuation, founder succession and a third of revenue from service. The fund has stated appetite for pumps and flow control."
+        },
+        {
+          "buyer_id": "b_10",
+          "buyer_name": "Listed Nordic engineering group",
+          "fit": 81,
+          "reason": "Aftermarket and service business in flow control complements the group's installed base in pulp and paper; bolt-on size fits its stated 5 to 60 M€ revenue range."
+        },
+        {
+          "buyer_id": "b_07",
+          "buyer_name": "Finnish evergreen family office",
+          "fit": 73,
+          "reason": "Long-hold owner suits a founder who cares about continuity for 78 employees in Tampere; revenue and EBITDA are inside the mandate range."
+        }
+      ],
+      "messages": [
+        {
+          "id": "m_01_1",
+          "company_id": "c_01",
+          "channel": "email",
+          "step": 1,
+          "send_after_days": 0,
+          "language": "en",
+          "subject": "Pirkan Fluid Systems and three buyers in the Nordics",
+          "body": "Jukka,\n\nI am writing because of your dosing systems. Pirkan Fluid Systems has something most Nordic pump companies never built: a thirty-year installed base in pulp and paper mills and municipal waterworks, and a PFS Care service business that repeats every year.\n\nWe are working with three buyers looking for this profile in the Nordics. A lower mid-market fund building an industrial services platform, a listed engineering group adding aftermarket businesses, and a Finnish family office that holds for decades. None of them has heard your name from us.\n\nI run Mergero, an M&A advisory firm in Helsinki. We have closed over 500 million euros of transactions, all off-market, no auctions.\n\nWould a 30-minute call next week be worth your time? Even if the answer is not now, you will know where the market stands.\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "status": "draft",
+          "humanizer": {
+            "ai_tell_score_before": 58,
+            "ai_tell_score_after": 8,
+            "flags": [
+              "\"I hope this email finds you well\" — stock opener",
+              "\"unlock significant synergies\" — buzzword, banned by style rules",
+              "\"I would love to explore\" — vague ask with no concrete next step",
+              "Three em dashes in 140 words — punctuation pattern typical of generated text"
+            ],
+            "changes": [
+              "Replaced the opener with the concrete reason for writing (dosing systems and the installed base)",
+              "Named the three buyer types instead of 'several interested parties'",
+              "Cut 190 words to 131 and removed all em dashes and one exclamation mark",
+              "Changed the ask to a 30-minute call next week with a no-pressure exit line"
+            ]
+          },
+          "created_at": "2026-09-22T09:21:00Z",
+          "sent_at": null
+        },
+        {
+          "id": "m_01_2",
+          "company_id": "c_01",
+          "channel": "email",
+          "step": 2,
+          "send_after_days": 6,
+          "language": "en",
+          "subject": "Re: Pirkan Fluid Systems and three buyers in the Nordics",
+          "body": "Jukka,\n\nOne more thought after my note last week. Two of the three buyers I mentioned prefer a structure where the founder keeps running the company for two or three years after the deal and keeps a minority stake. That turns the question from selling out into taking some money off the table while the business keeps growing, with a partner who funds the next step for PFS-Dos outside Finland.\n\nIf a call is not convenient right now, I can send a two-page note on how these processes usually run. A one-word reply is enough.\n\nTimo Tontti\nManaging Partner, Mergero",
+          "status": "draft",
+          "humanizer": {
+            "ai_tell_score_before": 41,
+            "ai_tell_score_after": 6,
+            "flags": [
+              "\"Just circling back\" — filler follow-up phrase",
+              "\"leverage our network\" — banned word",
+              "Sentence-initial \"Additionally\" — connective typical of generated text"
+            ],
+            "changes": [
+              "Opened with a new angle (founder stays on, minority stake) instead of restating the first email",
+              "Tied the angle to a concrete product (PFS-Dos export)",
+              "Replaced the call to action with a one-word reply option"
+            ]
+          },
+          "created_at": "2026-09-22T09:21:00Z",
+          "sent_at": null
+        },
+        {
+          "id": "m_01_3",
+          "company_id": "c_01",
+          "channel": "email",
+          "step": 3,
+          "send_after_days": 14,
+          "language": "en",
+          "subject": "Re: Pirkan Fluid Systems and three buyers in the Nordics",
+          "body": "Jukka,\n\nI will stop here so I am not filling your inbox. If the timing is wrong this year, that is a perfectly good answer and I would rather hear it than guess.\n\nShould you ever want a quiet, confidential view of what Pirkan Fluid Systems would be worth to the buyers active in Nordic industrial equipment right now, my number is below. No process, no commitment, just a conversation between two people who have both spent a long time around pumps and mills.\n\nEither way, thank you for reading these, and good luck with the autumn season.\n\nKind regards\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "status": "draft",
+          "humanizer": {
+            "ai_tell_score_before": 47,
+            "ai_tell_score_after": 7,
+            "flags": [
+              "\"I wanted to reach out one last time\" — stock closer",
+              "\"Don't hesitate to\" — stock phrase",
+              "Exclamation mark in the sign-off — banned by style rules"
+            ],
+            "changes": [
+              "Made the exit explicit and gave the owner permission to say no",
+              "Kept one concrete offer (confidential valuation view) instead of three generic ones",
+              "Removed the exclamation mark and shortened the sign-off"
+            ]
+          },
+          "created_at": "2026-09-22T09:21:00Z",
+          "sent_at": null
+        }
+      ],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-01T08:12:00Z",
+      "updated_at": "2026-09-22T09:21:00Z"
+    },
+    {
+      "id": "c_02",
+      "name": "Skarpline Software AB",
+      "country": "SE",
+      "city": "Göteborg",
+      "website": "https://www.skarpline-demo.se",
+      "industry": "B2B software",
+      "revenue_eur": 6800000,
+      "ebitda_eur": 1100000,
+      "employees": 52,
+      "founded": 2009,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Henrik Dahlgren",
+        "title": "CEO & Co-founder",
+        "age": 54,
+        "tenure_years": 17,
+        "email": "henrik.dahlgren@skarpline-demo.se",
+        "linkedin": "https://www.linkedin.com/in/henrik-dahlgren-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "contacted",
+      "channel": "email",
+      "enrichment": {
+        "summary": "Skarpline Software AB develops Skarpline FSM, a field-service scheduling and work-order platform for facility management, property maintenance and installation companies in the Nordics. Founded in Göteborg in 2009 by Henrik Dahlgren and CTO Petra Ek, it serves about 260 customers on annual subscriptions. Roughly 52 employees and 6.8 M€ revenue, of which the website indicates more than 85 percent is recurring.",
+        "products": [
+          "Skarpline FSM scheduling and dispatch platform",
+          "Skarpline Mobile technician app",
+          "Skarpline Connect integration marketplace (Fortnox, Visma, Microsoft Dynamics)",
+          "Onboarding and premium support services"
+        ],
+        "customers": [
+          "Facility management and property maintenance companies in Sweden and Norway",
+          "Regional HVAC and electrical installation firms",
+          "Municipal housing companies in western Sweden",
+          "A national elevator service provider (reference case published 2024)"
+        ],
+        "positioning": "Nordic mid-market alternative to global field-service suites: faster to deploy, Swedish and Norwegian language support, priced per technician. Competes with generic scheduling tools at the low end.",
+        "recent_news": [
+          "Released the Skarpline Connect integration marketplace in 2025",
+          "Opened a Norwegian sales office in Oslo in 2024",
+          "Reported 14 percent net revenue growth for 2025 in a customer newsletter"
+        ],
+        "leadership": "Henrik Dahlgren, CEO and co-founder (54), and Petra Ek, CTO and co-founder (49), together hold an estimated 80 percent; the remainder is held by early employees. No external investors according to public filings.",
+        "signals": [
+          "Co-founders 54 and 49, 17 years in the business",
+          "No external capital raised; growth slowing from 20 to 14 percent",
+          "More than 85 percent recurring revenue on annual contracts",
+          "Norway expansion in 2024 increases the cost base",
+          "Two Nordic field-service software peers acquired by PE in 2024 and 2025"
+        ],
+        "data_gaps": [
+          "Net revenue retention and churn unknown",
+          "Exact cap table and employee option pool unknown",
+          "Split between subscription and services revenue unknown"
+        ],
+        "sources": [
+          "https://www.skarpline-demo.se",
+          "https://www.skarpline-demo.se/about",
+          "https://www.skarpline-demo.se/news"
+        ],
+        "confidence": "medium",
+        "enriched_at": "2026-09-22T10:05:00Z"
+      },
+      "score": {
+        "readiness": 64,
+        "attractiveness": 69,
+        "valuation_band_eur": {
+          "low": 13000000,
+          "high": 20000000
+        },
+        "meets_minimum": true,
+        "why_now": "Henrik Dahlgren and Petra Ek are 17 years in with no outside capital, and growth has slowed to 14 percent while the Norway expansion adds cost. Two Nordic peers in field-service software were bought by private equity in 2024 and 2025, so the founders are seeing exit prices from close range. Readiness is moderate because there is no age-driven succession pressure and the founders still appear to enjoy the operating role, but a growth partner or a majority sale to a software platform fits the next 3 to 6 months.",
+        "signals": [
+          {
+            "signal": "Founders 54 and 49, 17-year tenure",
+            "direction": "positive",
+            "weight": "medium",
+            "note": "Not a succession case, but long tenure without outside capital often precedes a first liquidity event."
+          },
+          {
+            "signal": "Growth slowing to 14 percent",
+            "direction": "positive",
+            "weight": "medium",
+            "note": "Founders who see growth flatten frequently look for a partner to fund sales expansion."
+          },
+          {
+            "signal": "Peers acquired by PE in 2024 and 2025",
+            "direction": "positive",
+            "weight": "high",
+            "note": "Visible exit comparables in the same niche and geography."
+          },
+          {
+            "signal": "More than 85 percent recurring revenue",
+            "direction": "positive",
+            "weight": "high",
+            "note": "Core attractiveness driver for software investors."
+          },
+          {
+            "signal": "Norway office opened 2024",
+            "direction": "negative",
+            "weight": "low",
+            "note": "Suggests appetite to keep building independently for now."
+          }
+        ],
+        "risks": [
+          "Sub-10 M€ revenue is below the floor for several software funds",
+          "Churn and net retention unknown; a weak figure would compress the valuation band",
+          "Two co-founders may have different timing preferences"
+        ],
+        "recommended_timing": "3-6 months",
+        "scored_at": "2026-09-22T10:08:00Z"
+      },
+      "matches": [
+        {
+          "buyer_id": "b_03",
+          "buyer_name": "Pan-European software growth investor",
+          "fit": 84,
+          "reason": "Vertical SaaS with more than 85 percent recurring revenue in the Nordics matches the growth thesis; minority and majority structures both possible."
+        },
+        {
+          "buyer_id": "b_06",
+          "buyer_name": "Nordic IT services and software consolidation vehicle",
+          "fit": 77,
+          "reason": "Add-on candidate for a Nordic software and services platform; size and geography fit, and the customer base overlaps with its property-technology holding."
+        },
+        {
+          "buyer_id": "b_08",
+          "buyer_name": "Swiss entrepreneurial family office",
+          "fit": 58,
+          "reason": "Sector fits, geography is a stretch; the office has said it would consider a Nordic vertical software platform as a new leg."
+        }
+      ],
+      "messages": [
+        {
+          "id": "m_02_1",
+          "company_id": "c_02",
+          "channel": "email",
+          "step": 1,
+          "send_after_days": 0,
+          "language": "en",
+          "subject": "Skarpline and the buyers active in Nordic field-service software",
+          "body": "Henrik,\n\nI am writing because of Skarpline Connect. A field-service platform that already sits inside Fortnox, Visma and Dynamics at 260 customers is hard to build and easy to value, and two of your Nordic peers were bought by private equity in the last eighteen months. You will have seen the prices.\n\nWe are working with three buyers looking for exactly this profile: a pan-European software investor that takes minority or majority positions, a Nordic software and services platform doing add-ons, and a family office that has asked us for a Nordic vertical SaaS company.\n\nI run Mergero, an M&A advisory firm in Helsinki with over 500 million euros closed, all off-market.\n\nWould you and Petra be open to a 30-minute call in the next two weeks? No pitch deck, just what buyers are paying and why.\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "status": "sent",
+          "humanizer": {
+            "ai_tell_score_before": 55,
+            "ai_tell_score_after": 9,
+            "flags": [
+              "\"I hope you're having a great week\" — stock opener",
+              "\"synergies\" — banned word",
+              "\"exciting opportunity\" — marketing adjective",
+              "\"Looking forward to hearing from you!\" — exclamation mark and stock closer"
+            ],
+            "changes": [
+              "Opened with Skarpline Connect and the two peer transactions instead of a greeting",
+              "Replaced 'a number of interested parties' with three described buyer types",
+              "Addressed both co-founders in the ask",
+              "Cut from 175 to 138 words"
+            ]
+          },
+          "created_at": "2026-09-22T10:15:00Z",
+          "sent_at": "2026-09-23T07:40:00Z"
+        },
+        {
+          "id": "m_02_2",
+          "company_id": "c_02",
+          "channel": "email",
+          "step": 2,
+          "send_after_days": 6,
+          "language": "en",
+          "subject": "Re: Skarpline and the buyers active in Nordic field-service software",
+          "body": "Henrik,\n\nA short follow-up. One thing I did not mention: the software investor I referred to has funded two Nordic companies through exactly the step you are taking now, opening a second country with a small local team. In both cases the founders kept control and sold a minority stake to pay for the expansion, then sold the majority three years later at a higher multiple. Oslo is a good test of how far the product travels.\n\nIf that is a more interesting conversation than an outright sale, say so and I will tailor the call to it.\n\nTimo Tontti\nManaging Partner, Mergero",
+          "status": "approved",
+          "humanizer": {
+            "ai_tell_score_before": 39,
+            "ai_tell_score_after": 7,
+            "flags": [
+              "\"Just following up on my previous email\" — filler follow-up phrase",
+              "\"take your business to the next level\" — marketing cliche",
+              "Two em dashes — punctuation pattern typical of generated text"
+            ],
+            "changes": [
+              "Replaced the follow-up filler with a new angle (minority stake to fund the Norway expansion)",
+              "Added a concrete precedent (two Nordic companies, same step)",
+              "Removed em dashes and shortened to 97 words"
+            ]
+          },
+          "created_at": "2026-09-22T10:15:00Z",
+          "sent_at": null
+        },
+        {
+          "id": "m_02_3",
+          "company_id": "c_02",
+          "channel": "email",
+          "step": 3,
+          "send_after_days": 14,
+          "language": "en",
+          "subject": "Re: Skarpline and the buyers active in Nordic field-service software",
+          "body": "Henrik,\n\nLast note from me. If the timing is wrong or you would rather keep building on your own for a few more years, that is a good answer and I will not chase.\n\nIf you ever want a confidential view of what Skarpline would be worth today, and which of the current buyers would pay it, my number is below. It takes one call and there is no commitment attached. The comparables I mentioned are public, so I can also just send you the numbers.\n\nGood luck with the Norwegian push in any case.\n\nKind regards\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "status": "approved",
+          "humanizer": {
+            "ai_tell_score_before": 44,
+            "ai_tell_score_after": 6,
+            "flags": [
+              "\"I wanted to reach out one final time\" — stock closer",
+              "\"Please don't hesitate to contact me\" — stock phrase",
+              "\"Wishing you continued success!\" — exclamation mark and stock closer"
+            ],
+            "changes": [
+              "Gave the owner an explicit way to say no",
+              "Offered to send the public comparables as a low-effort next step",
+              "Removed the exclamation mark and the stock sign-off"
+            ]
+          },
+          "created_at": "2026-09-22T10:15:00Z",
+          "sent_at": null
+        }
+      ],
+      "conversation": [
+        {
+          "id": "e_02_1",
+          "direction": "outbound",
+          "channel": "email",
+          "text": "Henrik,\n\nI am writing because of Skarpline Connect. A field-service platform that already sits inside Fortnox, Visma and Dynamics at 260 customers is hard to build and easy to value, and two of your Nordic peers were bought by private equity in the last eighteen months. You will have seen the prices.\n\nWe are working with three buyers looking for exactly this profile: a pan-European software investor that takes minority or majority positions, a Nordic software and services platform doing add-ons, and a family office that has asked us for a Nordic vertical SaaS company.\n\nI run Mergero, an M&A advisory firm in Helsinki with over 500 million euros closed, all off-market.\n\nWould you and Petra be open to a 30-minute call in the next two weeks? No pitch deck, just what buyers are paying and why.\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "at": "2026-09-23T07:40:00Z",
+          "triage": null
+        }
+      ],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-01T08:14:00Z",
+      "updated_at": "2026-09-23T07:40:00Z"
+    },
+    {
+      "id": "c_03",
+      "name": "Pohjolan Kuntoutus Oy",
+      "country": "FI",
+      "city": "Oulu",
+      "website": "https://www.pohjolankuntoutus-demo.fi",
+      "industry": "Healthcare services",
+      "revenue_eur": 9600000,
+      "ebitda_eur": 1400000,
+      "employees": 118,
+      "founded": 1989,
+      "ownership_type": "family-owned",
+      "owner": {
+        "name": "Marjatta Kivelä",
+        "title": "Managing Director & Owner",
+        "age": 66,
+        "tenure_years": 37,
+        "email": "marjatta.kivela@pohjolankuntoutus-demo.fi",
+        "linkedin": "https://www.linkedin.com/in/marjatta-kivela-demo"
+      },
+      "source": "Referral",
+      "stage": "replied",
+      "channel": "email",
+      "enrichment": {
+        "summary": "Pohjolan Kuntoutus Oy runs seven physiotherapy and occupational rehabilitation clinics in Northern Finland (Oulu, Kemi, Rovaniemi, Kajaani, Kokkola, Raahe and Kuusamo). Founded in 1989 by physiotherapist Marjatta Kivelä, it serves wellbeing services counties, Kela-funded rehabilitation, occupational health providers and private patients. About 118 employees, most of them licensed physiotherapists, and revenue of around 9.6 M€.",
+        "products": [
+          "Outpatient physiotherapy and manual therapy",
+          "Kela-funded intensive medical rehabilitation for adults and children",
+          "Occupational rehabilitation programmes for employers and insurers",
+          "Remote physiotherapy service launched in 2023",
+          "Two on-site clinics inside occupational health centres"
+        ],
+        "customers": [
+          "Wellbeing services counties of North Ostrobothnia and Lapland (framework agreements)",
+          "Kela rehabilitation contracts",
+          "Occupational health providers and large regional employers",
+          "Private self-paying and insurance-funded patients"
+        ],
+        "positioning": "Largest independent rehabilitation chain in Northern Finland, positioned between the national private healthcare groups and single-clinic practitioners. Wins public tenders through regional coverage and therapist retention.",
+        "recent_news": [
+          "Opened the Kuusamo clinic in 2024, the seventh location",
+          "Won a four-year Kela rehabilitation contract for Lapland in 2025",
+          "Founder's daughter appointed Clinical Director in 2025 after a career outside the company"
+        ],
+        "leadership": "Marjatta Kivelä, founder and Managing Director (66), owns 100 percent together with her husband through a holding company. Daughter Elina Kivelä-Salo (38) joined as Clinical Director in 2025 and has said in a regional newspaper interview that she prefers clinical work to running the company. Finance is outsourced to an accounting firm.",
+        "signals": [
+          "Owner 66, founder since 1989, 37 years tenure",
+          "Daughter joined in 2025 but has said she prefers a clinical role",
+          "Public tender pipeline gives 2 to 4 years of revenue visibility",
+          "National healthcare groups have acquired six regional physiotherapy chains since 2023",
+          "Therapist shortage in Lapland increases dependence on recruitment",
+          "EBITDA margin around 14.5 percent, above regional peers"
+        ],
+        "data_gaps": [
+          "Revenue split by payer (county, Kela, occupational health, private) unknown",
+          "Top-10 client concentration unknown",
+          "Lease terms of the seven clinic premises unknown"
+        ],
+        "sources": [
+          "https://www.pohjolankuntoutus-demo.fi",
+          "https://www.pohjolankuntoutus-demo.fi/yritys",
+          "https://www.pohjolankuntoutus-demo.fi/ajankohtaista"
+        ],
+        "confidence": "high",
+        "enriched_at": "2026-09-15T11:20:00Z"
+      },
+      "score": {
+        "readiness": 82,
+        "attractiveness": 66,
+        "valuation_band_eur": {
+          "low": 7000000,
+          "high": 9800000
+        },
+        "meets_minimum": true,
+        "why_now": "Marjatta Kivelä is 66 and has led the company for 37 years. Her daughter joined in 2025 but has said publicly that she prefers a clinical role, which leaves the ownership question open at exactly the point when national healthcare groups and a Nordic healthcare PE platform are consolidating regional physiotherapy chains. The new four-year Kela contract gives a buyer revenue visibility, so the coming months are the moment to sell into that demand rather than after the contract has aged.",
+        "signals": [
+          {
+            "signal": "Owner age 66, 37 years tenure",
+            "direction": "positive",
+            "weight": "high",
+            "note": "Well inside the succession window; the referral partner reports she has spoken about retirement."
+          },
+          {
+            "signal": "Daughter prefers a clinical role",
+            "direction": "positive",
+            "weight": "high",
+            "note": "Reduces the probability of a family succession."
+          },
+          {
+            "signal": "Four-year Kela contract won in 2025",
+            "direction": "positive",
+            "weight": "medium",
+            "note": "Revenue visibility improves bankability for PE-backed buyers."
+          },
+          {
+            "signal": "Active consolidation of regional physiotherapy chains",
+            "direction": "positive",
+            "weight": "high",
+            "note": "Six comparable transactions since 2023 create price awareness and buyer demand."
+          },
+          {
+            "signal": "Therapist shortage in Lapland",
+            "direction": "negative",
+            "weight": "medium",
+            "note": "Recruitment risk will come up in due diligence and may push buyers towards earn-out structures."
+          }
+        ],
+        "risks": [
+          "Public payer dependence: county and Kela contracts may be 60 percent or more of revenue",
+          "Key-person risk in the founder's relationships with county procurement",
+          "Clinic leases in small towns may need renegotiation on change of control"
+        ],
+        "recommended_timing": "now",
+        "scored_at": "2026-09-15T11:24:00Z"
+      },
+      "matches": [
+        {
+          "buyer_id": "b_04",
+          "buyer_name": "Nordic healthcare services PE platform",
+          "fit": 88,
+          "reason": "Direct add-on to its Finnish rehabilitation platform; a regional chain with public contracts is the stated target profile."
+        },
+        {
+          "buyer_id": "b_07",
+          "buyer_name": "Finnish evergreen family office",
+          "fit": 74,
+          "reason": "Long-hold owner suits a founder who wants the clinics to stay local; healthcare services is inside the mandate and the size fits."
+        },
+        {
+          "buyer_id": "b_01",
+          "buyer_name": "Nordic lower-mid-market PE fund",
+          "fit": 66,
+          "reason": "Generalist fund with healthcare in scope; would likely treat it as a platform start in Northern Finland rather than an add-on, which limits the price."
+        }
+      ],
+      "messages": [
+        {
+          "id": "m_03_1",
+          "company_id": "c_03",
+          "channel": "email",
+          "step": 1,
+          "send_after_days": 0,
+          "language": "en",
+          "subject": "Pohjolan Kuntoutus and the groups buying rehabilitation clinics",
+          "body": "Marjatta,\n\nI am writing because of the Kela contract you won for Lapland last year. Seven clinics, a four-year public contract and a team of 118 therapists in a region where nobody else has that coverage is exactly what the buyers consolidating Finnish rehabilitation are asking us for.\n\nWe are working with three of them: a Nordic healthcare group backed by private equity that is building a rehabilitation platform in Finland, a Finnish family office that holds companies for decades, and a Nordic fund looking for a regional healthcare platform.\n\nI run Mergero, an M&A advisory firm in Helsinki. We have closed over 500 million euros of transactions, all off-market and confidential.\n\nWould you have 30 minutes for a call in the next two weeks? I can come to Oulu if that is easier.\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "status": "sent",
+          "humanizer": {
+            "ai_tell_score_before": 61,
+            "ai_tell_score_after": 8,
+            "flags": [
+              "\"I hope this email finds you well\" — stock opener",
+              "\"delve into\" — banned word",
+              "\"seamless transition\" — marketing cliche",
+              "Bullet list of three value propositions — style rules forbid lists"
+            ],
+            "changes": [
+              "Opened with the Lapland Kela contract as the concrete reason for writing",
+              "Turned the bullet list of buyers into one plain sentence",
+              "Added the offer to travel to Oulu",
+              "Cut from 210 to 133 words"
+            ]
+          },
+          "created_at": "2026-09-15T11:31:00Z",
+          "sent_at": "2026-09-18T06:55:00Z"
+        },
+        {
+          "id": "m_03_2",
+          "company_id": "c_03",
+          "channel": "email",
+          "step": 2,
+          "send_after_days": 6,
+          "language": "en",
+          "subject": "Re: Pohjolan Kuntoutus and the groups buying rehabilitation clinics",
+          "body": "Marjatta,\n\nA short follow-up to my note last week. One thing owners in your position often tell me is that the clinics matter more than the price: the therapists, the patients in Kemi and Kuusamo, the name on the door. Two of the buyers I mentioned have kept the local brand and the local management in every clinic chain they have bought so far, and I can show you the references.\n\nIf a call does not suit, I am happy to send a short written note on how a confidential process works. One line back is enough.\n\nTimo Tontti\nManaging Partner, Mergero",
+          "status": "approved",
+          "humanizer": {
+            "ai_tell_score_before": 43,
+            "ai_tell_score_after": 7,
+            "flags": [
+              "\"Just checking in\" — filler follow-up phrase",
+              "\"win-win\" — cliche",
+              "\"Best regards!\" — exclamation mark in the sign-off"
+            ],
+            "changes": [
+              "Led with what owners actually worry about (staff, patients, local name) instead of restating the offer",
+              "Added the concrete reference point about brand and management retention",
+              "Removed the exclamation mark"
+            ]
+          },
+          "created_at": "2026-09-15T11:31:00Z",
+          "sent_at": null
+        },
+        {
+          "id": "m_03_3",
+          "company_id": "c_03",
+          "channel": "email",
+          "step": 3,
+          "send_after_days": 14,
+          "language": "en",
+          "subject": "Re: Pohjolan Kuntoutus and the groups buying rehabilitation clinics",
+          "body": "Marjatta,\n\nI will leave it here. If this is not the right year, that is a perfectly good answer and I would rather hear it than keep writing.\n\nShould you at some point want a confidential view of what Pohjolan Kuntoutus would be worth to the groups buying rehabilitation clinics right now, my number is below. One call, no process and no commitment. What you learn is yours to use whenever the time is right.\n\nThank you for reading, and my best wishes to the team.\n\nKind regards\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "status": "approved",
+          "humanizer": {
+            "ai_tell_score_before": 46,
+            "ai_tell_score_after": 6,
+            "flags": [
+              "\"I wanted to touch base one last time\" — stock closer",
+              "\"at your earliest convenience\" — stock phrase",
+              "Em dash in the closing sentence — banned by style rules"
+            ],
+            "changes": [
+              "Made the exit explicit and low-pressure",
+              "Kept one concrete offer instead of a generic call to action",
+              "Removed the em dash and shortened the sign-off"
+            ]
+          },
+          "created_at": "2026-09-15T11:31:00Z",
+          "sent_at": null
+        },
+        {
+          "id": "m_03_r1",
+          "company_id": "c_03",
+          "channel": "email",
+          "step": 0,
+          "send_after_days": 0,
+          "language": "en",
+          "subject": "Re: Pohjolan Kuntoutus and the groups buying rehabilitation clinics",
+          "body": "Marjatta,\n\nThank you for replying, and for being direct about it. Your two conditions are the right ones: no auction, and the company stays whole.\n\nOn the buyers, in general terms: one is a Nordic healthcare group backed by private equity that buys regional rehabilitation chains and keeps the local name and management, one is a Finnish family office that holds companies for decades, and one is a Nordic fund that would build around you rather than fold you in. I will say more on the phone, and you decide which of them, if any, ever hear your name.\n\nA process starts with a conversation, then a short confidential summary you approve line by line, then meetings with only the buyers you choose. Staff and the county hear nothing until you decide.\n\nWould Tuesday 29 September or Thursday 1 October at 15:30 work for a 30-minute call?\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "status": "draft",
+          "humanizer": {
+            "ai_tell_score_before": 37,
+            "ai_tell_score_after": 5,
+            "flags": [
+              "\"Thank you so much for getting back to me!\" — exclamation mark and over-eager opener",
+              "\"I completely understand your concerns\" — empathy filler",
+              "Numbered list of process steps — style rules forbid lists"
+            ],
+            "changes": [
+              "Answered her two questions in the order she asked them",
+              "Turned the numbered process list into two plain sentences",
+              "Proposed two concrete slots after 15:00 as she requested"
+            ]
+          },
+          "created_at": "2026-09-24T14:33:00Z",
+          "sent_at": null
+        }
+      ],
+      "conversation": [
+        {
+          "id": "e_03_1",
+          "direction": "outbound",
+          "channel": "email",
+          "text": "Marjatta,\n\nI am writing because of the Kela contract you won for Lapland last year. Seven clinics, a four-year public contract and a team of 118 therapists in a region where nobody else has that coverage is exactly what the buyers consolidating Finnish rehabilitation are asking us for.\n\nWe are working with three of them: a Nordic healthcare group backed by private equity that is building a rehabilitation platform in Finland, a Finnish family office that holds companies for decades, and a Nordic fund looking for a regional healthcare platform.\n\nI run Mergero, an M&A advisory firm in Helsinki. We have closed over 500 million euros of transactions, all off-market and confidential.\n\nWould you have 30 minutes for a call in the next two weeks? I can come to Oulu if that is easier.\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "at": "2026-09-18T06:55:00Z",
+          "triage": null
+        },
+        {
+          "id": "e_03_2",
+          "direction": "inbound",
+          "channel": "email",
+          "text": "Dear Mr Tontti,\n\nThank you for your message. I do not usually answer these, but you have done your homework and the timing is not entirely wrong. I am 66 and I have thought about what happens with the company in the next couple of years. My daughter works with us now but she has been clear that she wants to treat patients, not run seven clinics.\n\nI have no interest in an auction or in the company being broken up. Before I agree to anything, I would like to understand who these buyers are, at least in general terms, what a process like this actually looks like from start to finish, and how you keep it confidential from our staff and the county.\n\nI am in Oulu most weeks. A call is possible, preferably after 15:00.\n\nKind regards,\nMarjatta Kivelä",
+          "at": "2026-09-24T14:32:00Z",
+          "triage": {
+            "intent": "curious",
+            "sentiment": "warm",
+            "extracted_facts": [
+              {
+                "field": "succession_intent",
+                "value": "Owner considering exit within 2 years",
+                "confidence": "medium"
+              },
+              {
+                "field": "decision_makers",
+                "value": "Marjatta Kivelä (100 percent with husband via holding company); daughter Elina is Clinical Director and does not want the CEO role",
+                "confidence": "high"
+              },
+              {
+                "field": "deal_breakers",
+                "value": "No auction; company must not be broken up; confidentiality towards staff and county customers",
+                "confidence": "high"
+              },
+              {
+                "field": "availability",
+                "value": "Based in Oulu; calls preferred after 15:00",
+                "confidence": "high"
+              }
+            ],
+            "recommended_stage": "warming",
+            "next_step": "Send the reply draft today with two concrete slots after 15:00, and prepare an anonymised one-page description of the three buyer types plus a process outline for the call.",
+            "reply_message_id": "m_03_r1"
+          }
+        }
+      ],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-01T08:16:00Z",
+      "updated_at": "2026-09-24T14:33:00Z"
+    },
+    {
+      "id": "c_04",
+      "name": "Traxio IT Solutions GmbH",
+      "country": "DE",
+      "city": "Nürnberg",
+      "website": "https://www.traxio-it-demo.de",
+      "industry": "IT services",
+      "revenue_eur": 18500000,
+      "ebitda_eur": 2400000,
+      "employees": 130,
+      "founded": 2003,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Matthias Brandl",
+        "title": "Geschäftsführer & Gründer",
+        "age": 58,
+        "tenure_years": 23,
+        "email": "matthias.brandl@traxio-it-demo.de",
+        "linkedin": "https://www.linkedin.com/in/matthias-brandl-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "warming",
+      "channel": "linkedin",
+      "enrichment": {
+        "summary": "Traxio IT Solutions GmbH is a managed IT services and systems integration provider for mid-sized manufacturing companies in Bavaria and Baden-Württemberg. Founded in Nürnberg in 2003 by Matthias Brandl, it runs client infrastructure, Microsoft 365 and ERP-adjacent integration, and operates a 24/7 German-language service desk from Nürnberg and a second office in Regensburg. About 130 employees and revenue of 18.5 M€.",
+        "products": [
+          "Traxio Managed Workplace (device, identity and Microsoft 365 management)",
+          "Traxio Managed Infrastructure (hybrid cloud, backup, network operations)",
+          "Traxio Secure, SOC-as-a-service launched in 2024",
+          "ERP and shop-floor integration projects for SAP and proALPHA environments",
+          "24/7 German-language service desk"
+        ],
+        "customers": [
+          "Around 190 Mittelstand manufacturers with 100 to 2,000 employees",
+          "Automotive tier-2 suppliers in the Nürnberg and Ingolstadt area",
+          "Two regional hospital groups (managed workplace)",
+          "A listed machine-tool manufacturer, largest account and anchor client since 2011"
+        ],
+        "positioning": "Regional managed-services provider with deep manufacturing know-how, competing with national IT groups on responsiveness and with local system houses on scale and certifications (ISO 27001, Microsoft Solutions Partner).",
+        "recent_news": [
+          "Launched Traxio Secure, a SOC-as-a-service offering, in 2024",
+          "Opened a second office in Regensburg in 2023",
+          "Founder posted on LinkedIn in 2026 about 'the next chapter' after 23 years and his new seat on a university advisory board"
+        ],
+        "leadership": "Matthias Brandl, founder and Geschäftsführer (58), owns 100 percent. Second Geschäftsführer Stefan Roth (46) joined in 2019 from a national IT group and runs operations. Head of Sales Daniela Kern (41). No family involvement.",
+        "signals": [
+          "Owner 58, 23 years tenure, sole shareholder",
+          "Strong second line: co-Geschäftsführer running operations since 2019",
+          "Founder LinkedIn post about 'the next chapter' (2026)",
+          "Roughly 70 percent recurring managed-services revenue (estimate from website)",
+          "German IT services consolidators completed more than 40 add-ons in 2025",
+          "Largest account estimated at 12 to 15 percent of revenue"
+        ],
+        "data_gaps": [
+          "Revenue split between managed services and projects unknown",
+          "Top-10 client concentration unknown",
+          "Normalised EBITDA (owner salary, Regensburg start-up costs) unknown"
+        ],
+        "sources": [
+          "https://www.traxio-it-demo.de",
+          "https://www.traxio-it-demo.de/unternehmen",
+          "https://www.traxio-it-demo.de/news"
+        ],
+        "confidence": "high",
+        "enriched_at": "2026-09-02T09:40:00Z"
+      },
+      "score": {
+        "readiness": 70,
+        "attractiveness": 74,
+        "valuation_band_eur": {
+          "low": 14500000,
+          "high": 19000000
+        },
+        "meets_minimum": true,
+        "why_now": "Matthias Brandl is 58, has had a capable second Geschäftsführer since 2019 and wrote publicly in 2026 about 'the next chapter' after 23 years. Managed services with around 70 percent recurring revenue and a manufacturing client base is the exact profile German IT consolidators bought more than 40 times in 2025, at the highest prices in a decade. Because Stefan Roth can run the business, a buyer can offer Brandl a clean exit or a 24-month handover, which removes the main reason owners in his position postpone.",
+        "signals": [
+          {
+            "signal": "Owner age 58 with a strong deputy",
+            "direction": "positive",
+            "weight": "high",
+            "note": "A successor in place lowers the barrier to a sale; the owner is not needed for continuity."
+          },
+          {
+            "signal": "'Next chapter' LinkedIn post in 2026",
+            "direction": "positive",
+            "weight": "medium",
+            "note": "Soft public signal of a change in personal priorities."
+          },
+          {
+            "signal": "Approximately 70 percent recurring revenue",
+            "direction": "positive",
+            "weight": "high",
+            "note": "Managed-services mix drives the highest multiples in German IT services."
+          },
+          {
+            "signal": "Active consolidator demand in DACH IT services",
+            "direction": "positive",
+            "weight": "high",
+            "note": "More than 40 add-on transactions in 2025; several of the buyers are on our list."
+          },
+          {
+            "signal": "Recent investments in the Regensburg office and the SOC",
+            "direction": "neutral",
+            "weight": "low",
+            "note": "Investments may depress 2024 to 2025 EBITDA but improve the growth story."
+          },
+          {
+            "signal": "Largest account 12 to 15 percent of revenue",
+            "direction": "negative",
+            "weight": "low",
+            "note": "Manageable concentration; will be examined in diligence."
+          }
+        ],
+        "risks": [
+          "Wage inflation for IT staff in Bavaria compressing margins",
+          "Project revenue share may be higher than assumed, reducing the multiple",
+          "Owner may prefer a management buy-out with Stefan Roth, which limits price"
+        ],
+        "recommended_timing": "now",
+        "scored_at": "2026-09-02T09:44:00Z"
+      },
+      "matches": [
+        {
+          "buyer_id": "b_11",
+          "buyer_name": "German IT services consolidator",
+          "fit": 91,
+          "reason": "A managed-services provider with a manufacturing client base in Bavaria fills a regional gap in the consolidator's map; size and recurring revenue fit precisely."
+        },
+        {
+          "buyer_id": "b_08",
+          "buyer_name": "Swiss entrepreneurial family office",
+          "fit": 76,
+          "reason": "IT services in Germany is inside the mandate; a long-hold owner suits a founder who wants continuity for 130 staff, and the valuation range fits."
+        },
+        {
+          "buyer_id": "b_03",
+          "buyer_name": "Pan-European software growth investor",
+          "fit": 63,
+          "reason": "Recurring revenue and the SOC offering are attractive, but the investor prefers software over services and would treat it as a services-to-platform play."
+        }
+      ],
+      "messages": [
+        {
+          "id": "m_04_1",
+          "company_id": "c_04",
+          "channel": "linkedin",
+          "step": 1,
+          "send_after_days": 0,
+          "language": "en",
+          "subject": "",
+          "body": "Herr Brandl,\n\nI am writing because of Traxio Secure. A regional managed-services provider that has moved 190 manufacturing clients onto its own SOC is a rare thing, and it is exactly what the German IT services consolidators are paying premium multiples for this year.\n\nWe are working with three buyers looking for this profile in Bavaria: a German IT services group doing add-ons, a Swiss family office that holds for the long term, and a European technology investor.\n\nI run Mergero, an M&A advisory firm with offices in Frankfurt and Zürich. Would a 30-minute call be worth your time?\n\nTimo Tontti, Managing Partner",
+          "status": "sent",
+          "humanizer": {
+            "ai_tell_score_before": 52,
+            "ai_tell_score_after": 7,
+            "flags": [
+              "\"I came across your impressive profile\" — stock LinkedIn opener",
+              "\"leverage\" — banned word",
+              "\"I'd love to connect and explore synergies\" — banned word and vague ask"
+            ],
+            "changes": [
+              "Opened with Traxio Secure and the 190 clients instead of a compliment",
+              "Named three buyer types in one sentence",
+              "Cut to 91 words to fit a LinkedIn message without scrolling"
+            ]
+          },
+          "created_at": "2026-09-02T09:52:00Z",
+          "sent_at": "2026-09-04T08:05:00Z"
+        },
+        {
+          "id": "m_04_2",
+          "company_id": "c_04",
+          "channel": "linkedin",
+          "step": 2,
+          "send_after_days": 6,
+          "language": "en",
+          "subject": "",
+          "body": "Herr Brandl,\n\nA short follow-up. The consolidator I mentioned has bought four system houses in the last two years and kept every founder who wanted to stay for a defined handover, typically 18 to 24 months. With Herr Roth already running operations, you would have more freedom than most owners in choosing how long that is.\n\nIf you would rather not discuss this on LinkedIn, my mobile is +358 400 274491 and I am in Frankfurt every second week.\n\nTimo Tontti, Managing Partner, Mergero",
+          "status": "sent",
+          "humanizer": {
+            "ai_tell_score_before": 38,
+            "ai_tell_score_after": 6,
+            "flags": [
+              "\"Just bumping this to the top of your inbox\" — filler follow-up phrase",
+              "\"seamless\" — marketing adjective",
+              "Em dash before the phone number — banned by style rules"
+            ],
+            "changes": [
+              "Replaced filler with a new angle (handover length, deputy already in place)",
+              "Added a concrete precedent (four system houses, founders kept)",
+              "Offered a channel switch to phone"
+            ]
+          },
+          "created_at": "2026-09-02T09:52:00Z",
+          "sent_at": "2026-09-10T08:10:00Z"
+        },
+        {
+          "id": "m_04_3",
+          "company_id": "c_04",
+          "channel": "linkedin",
+          "step": 3,
+          "send_after_days": 14,
+          "language": "en",
+          "subject": "",
+          "body": "Herr Brandl,\n\nLast message from me on this. If the timing is wrong, that is a good answer and I will not keep writing.\n\nShould you want a confidential view of what Traxio would be worth to the buyers active in German IT services right now, one call is enough. No process, no commitment.\n\nThank you for reading, and good luck with the SOC rollout.\n\nTimo Tontti, Managing Partner, Mergero",
+          "status": "approved",
+          "humanizer": {
+            "ai_tell_score_before": 40,
+            "ai_tell_score_after": 5,
+            "flags": [
+              "\"I wanted to reach out one last time\" — stock closer",
+              "\"Feel free to\" — stock phrase",
+              "\"All the best!\" — exclamation mark"
+            ],
+            "changes": [
+              "Made the exit explicit",
+              "Kept one concrete offer",
+              "Removed the exclamation mark"
+            ]
+          },
+          "created_at": "2026-09-02T09:52:00Z",
+          "sent_at": null
+        },
+        {
+          "id": "m_04_r1",
+          "company_id": "c_04",
+          "channel": "linkedin",
+          "step": 0,
+          "send_after_days": 0,
+          "language": "en",
+          "subject": "",
+          "body": "Herr Brandl,\n\nThank you, and good that Herr Roth joins. Tuesday 15 September or Wednesday 16 September at 15:00 would both work on my side. A Teams link follows once you pick one.\n\nTo make the valuation part concrete rather than theoretical, I have set up a short confidential questionnaire that takes about ten minutes: revenue split between managed services and projects, client concentration and a few points on timing. Only I see the answers, and they are deleted if we do not proceed. Link: http://localhost:3000/intake/demo-intake-c04\n\nOn the buyers, in general terms: a German IT services group building a national footprint, a Swiss family office with a 15-year horizon, and a European technology investor. More on the call.\n\nTimo Tontti",
+          "status": "sent",
+          "humanizer": {
+            "ai_tell_score_before": 34,
+            "ai_tell_score_after": 5,
+            "flags": [
+              "\"Great to hear from you!\" — exclamation mark and over-eager opener",
+              "\"I completely understand\" — empathy filler",
+              "Bullet list of questionnaire topics — style rules forbid lists"
+            ],
+            "changes": [
+              "Answered the scheduling question first with two concrete slots",
+              "Explained the questionnaire in one sentence and stated who sees the answers",
+              "Turned the bullet list into a plain sentence"
+            ]
+          },
+          "created_at": "2026-09-11T17:43:00Z",
+          "sent_at": "2026-09-12T07:30:00Z"
+        },
+        {
+          "id": "m_04_r2",
+          "company_id": "c_04",
+          "channel": "linkedin",
+          "step": 0,
+          "send_after_days": 0,
+          "language": "en",
+          "subject": "",
+          "body": "Herr Brandl,\n\nHappy to put it in writing. You will have a two-page note by Monday with three things: how we build a range for a managed-services provider (normalised EBITDA, recurring share, growth and client concentration), the multiples paid in the German IT services transactions of the last 18 months that we know first-hand, and the short list of documents a buyer expects in a first meeting, which is mostly what you have already given me plus the 2025 audited accounts.\n\nOn the building: it is a common situation and not a problem. The usual solution is a long-term lease at market rent agreed before the sale, or a sale-and-leaseback if you want to exit the property as well. Both keep the price of the company clean.\n\nI will call Herr Roth on Tuesday to confirm the note has arrived.\n\nTimo Tontti",
+          "status": "draft",
+          "humanizer": {
+            "ai_tell_score_before": 45,
+            "ai_tell_score_after": 6,
+            "flags": [
+              "\"Absolutely, I'd be delighted to!\" — exclamation mark and over-eager opener",
+              "Numbered list of deliverables — style rules forbid lists",
+              "\"Rest assured\" — reassurance filler"
+            ],
+            "changes": [
+              "Turned the numbered list into one sentence with three items",
+              "Answered the building question directly with the two usual structures",
+              "Added a concrete follow-up action (call Herr Roth on Tuesday)"
+            ]
+          },
+          "created_at": "2026-09-24T19:06:00Z",
+          "sent_at": null
+        }
+      ],
+      "conversation": [
+        {
+          "id": "e_04_1",
+          "direction": "outbound",
+          "channel": "linkedin",
+          "text": "Herr Brandl,\n\nI am writing because of Traxio Secure. A regional managed-services provider that has moved 190 manufacturing clients onto its own SOC is a rare thing, and it is exactly what the German IT services consolidators are paying premium multiples for this year.\n\nWe are working with three buyers looking for this profile in Bavaria: a German IT services group doing add-ons, a Swiss family office that holds for the long term, and a European technology investor.\n\nI run Mergero, an M&A advisory firm with offices in Frankfurt and Zürich. Would a 30-minute call be worth your time?\n\nTimo Tontti, Managing Partner",
+          "at": "2026-09-04T08:05:00Z",
+          "triage": null
+        },
+        {
+          "id": "e_04_2",
+          "direction": "outbound",
+          "channel": "linkedin",
+          "text": "Herr Brandl,\n\nA short follow-up. The consolidator I mentioned has bought four system houses in the last two years and kept every founder who wanted to stay for a defined handover, typically 18 to 24 months. With Herr Roth already running operations, you would have more freedom than most owners in choosing how long that is.\n\nIf you would rather not discuss this on LinkedIn, my mobile is +358 400 274491 and I am in Frankfurt every second week.\n\nTimo Tontti, Managing Partner, Mergero",
+          "at": "2026-09-10T08:10:00Z",
+          "triage": null
+        },
+        {
+          "id": "e_04_3",
+          "direction": "inbound",
+          "channel": "linkedin",
+          "text": "Herr Tontti, thank you for the two messages. I normally ignore these but the timing is interesting. A competitor of ours in Augsburg was sold last year and the founder seems happy with how it went. I am not in a hurry, but I would like to understand what a realistic range for a company like ours looks like and who the buyers are. Stefan Roth, my co-managing director, would join any call. Which days next week suit you? Afternoons are better.\n\nM. Brandl",
+          "at": "2026-09-11T17:42:00Z",
+          "triage": {
+            "intent": "interested",
+            "sentiment": "warm",
+            "extracted_facts": [
+              {
+                "field": "motivation",
+                "value": "Peer transaction in Augsburg (2025) with a good outcome for the founder",
+                "confidence": "high"
+              },
+              {
+                "field": "decision_makers",
+                "value": "Matthias Brandl (sole shareholder) with co-Geschäftsführer Stefan Roth joining all calls",
+                "confidence": "high"
+              },
+              {
+                "field": "timing",
+                "value": "Not in a hurry; open to a call next week, afternoons preferred",
+                "confidence": "medium"
+              }
+            ],
+            "recommended_stage": "warming",
+            "next_step": "Propose two afternoon slots next week, include the owner intake link so the valuation discussion can rest on real numbers, and prepare anonymised buyer profiles.",
+            "reply_message_id": "m_04_r1"
+          }
+        },
+        {
+          "id": "e_04_4",
+          "direction": "outbound",
+          "channel": "linkedin",
+          "text": "Herr Brandl,\n\nThank you, and good that Herr Roth joins. Tuesday 15 September or Wednesday 16 September at 15:00 would both work on my side. A Teams link follows once you pick one.\n\nTo make the valuation part concrete rather than theoretical, I have set up a short confidential questionnaire that takes about ten minutes: revenue split between managed services and projects, client concentration and a few points on timing. Only I see the answers, and they are deleted if we do not proceed. Link: http://localhost:3000/intake/demo-intake-c04\n\nOn the buyers, in general terms: a German IT services group building a national footprint, a Swiss family office with a 15-year horizon, and a European technology investor. More on the call.\n\nTimo Tontti",
+          "at": "2026-09-12T07:30:00Z",
+          "triage": null
+        },
+        {
+          "id": "e_04_5",
+          "direction": "inbound",
+          "channel": "linkedin",
+          "text": "Herr Tontti, thank you for the call last week and for the questionnaire, that was less painful than expected. Two things before we go further. Can you send me, in writing, how you arrive at a valuation range for a company like ours, what multiples the recent German IT services deals were done at, and what information a buyer would expect to see in a first meeting? Also, how do you handle the fact that our office building is mine privately and leased to the company? Stefan and I want to have this clear before we speak to anyone.\n\nM. Brandl",
+          "at": "2026-09-24T19:05:00Z",
+          "triage": {
+            "intent": "info_request",
+            "sentiment": "warm",
+            "extracted_facts": [
+              {
+                "field": "information_requested",
+                "value": "Written valuation methodology, recent German IT services multiples, first-meeting information list, treatment of the privately owned office building",
+                "confidence": "high"
+              },
+              {
+                "field": "decision_makers",
+                "value": "Owner and co-Geschäftsführer Stefan Roth decide jointly on next steps",
+                "confidence": "high"
+              },
+              {
+                "field": "real_estate",
+                "value": "Nürnberg office building owned privately by the founder and leased to the company; needs a lease or sale-and-leaseback structure",
+                "confidence": "high"
+              }
+            ],
+            "recommended_stage": "warming",
+            "next_step": "Send a two-page valuation note with anonymised 2025 to 2026 DACH IT services multiples and a first-meeting information list; propose a long-term lease or sale-and-leaseback for the building. Then request the audited 2025 accounts.",
+            "reply_message_id": "m_04_r2"
+          }
+        }
+      ],
+      "intake": {
+        "token": "demo-intake-c04",
+        "status": "complete",
+        "summary": {
+          "revenue_split": "Approximately 68 percent recurring managed services (workplace, infrastructure, SOC), 24 percent project and integration work, 8 percent hardware and licence resale. Managed share has grown every year since 2019.",
+          "top_clients_concentration": "Largest client (listed machine-tool manufacturer) about 13 percent of revenue; top-10 clients about 41 percent; no other client above 6 percent.",
+          "ebitda_normalized": "Reported EBITDA 2.4 M€. Owner estimates 2.9 to 3.0 M€ normalised after adding back above-market owner salary (about 0.25 M€), Regensburg start-up costs (about 0.2 M€ in 2025) and one-off SOC set-up costs.",
+          "timing": "Owner would like to sign within 12 to 18 months and stay for a defined handover of up to 24 months. Co-Geschäftsführer Stefan Roth wants to continue and would consider a management participation.",
+          "motivation": "Age 58 and 23 years as founder; wants time for university advisory work. Peer transaction in Augsburg in 2025 showed a realistic path. Wants growth capital for the SOC business without further personal guarantees.",
+          "deal_breakers": "No buyer that would close the Regensburg office or move the service desk offshore. No earn-out above 20 percent of the price. Staff must be informed personally by the owner before any announcement.",
+          "open_questions": [
+            "Audited 2025 figures and 2026 year-to-date trading",
+            "Whether the largest client contract contains a change-of-control clause",
+            "Preference between a strategic consolidator and a family-office minority structure",
+            "Nürnberg office building owned privately by the founder and leased to the company: lease terms and intended treatment"
+          ]
+        },
+        "transcript": [
+          {
+            "role": "assistant",
+            "text": "Good evening, Herr Brandl. I work with Timo Tontti at Mergero. This conversation is confidential and only Timo sees it. I have four short questions to prepare your call on Wednesday. First: roughly how does Traxio's revenue split between recurring managed services, project work, and hardware or licence resale?",
+            "at": "2026-09-14T18:02:00Z"
+          },
+          {
+            "role": "owner",
+            "text": "Roughly 68 percent managed services including the SOC, about 24 percent projects and integration, the rest hardware and licences, maybe 8 percent. The managed share has grown every year since 2019.",
+            "at": "2026-09-14T18:05:00Z"
+          },
+          {
+            "role": "assistant",
+            "text": "Thank you. How concentrated is the client base? A rough share for your largest client and for the top ten together is enough.",
+            "at": "2026-09-14T18:05:00Z"
+          },
+          {
+            "role": "owner",
+            "text": "The largest is the machine-tool group, around 13 percent. Top ten together perhaps 40 percent, I would say 41. Nobody else is above 6 percent.",
+            "at": "2026-09-14T18:08:00Z"
+          },
+          {
+            "role": "assistant",
+            "text": "Understood. On profitability: the 2.4 million EBITDA in the accounts, are there items you would consider one-off or owner-related that a buyer should add back?",
+            "at": "2026-09-14T18:08:00Z"
+          },
+          {
+            "role": "owner",
+            "text": "Yes. My salary is above market by maybe 250 thousand. Regensburg cost us about 200 thousand in 2025 before it broke even, and the SOC set-up had one-off costs. Normalised I would say 2.9 to 3.0 million.",
+            "at": "2026-09-14T18:13:00Z"
+          },
+          {
+            "role": "assistant",
+            "text": "That is helpful. Last question, in two parts. What would an ideal outcome look like for you personally over the next two years, and is there anything that would make you walk away from a deal regardless of price?",
+            "at": "2026-09-14T18:13:00Z"
+          },
+          {
+            "role": "owner",
+            "text": "Sign within 12 to 18 months, stay up to 24 months for the handover. Stefan wants to continue and would put his own money in if there is a structure for it. I want time for the university board and I want to stop signing personal guarantees for growth. Walk away: anyone who wants to close Regensburg or move the service desk offshore, and no earn-out above 20 percent. I tell the staff myself before anything is announced. One more thing: the Nürnberg office building is mine privately and leased to the company, we should talk about that.",
+            "at": "2026-09-14T18:20:00Z"
+          }
+        ]
+      },
+      "notes": "",
+      "created_at": "2026-09-01T08:18:00Z",
+      "updated_at": "2026-09-24T19:06:00Z"
+    },
+    {
+      "id": "c_05",
+      "name": "Fjordlink Logistikk AS",
+      "country": "NO",
+      "city": "Drammen",
+      "website": "https://www.fjordlink-demo.no",
+      "industry": "Logistics",
+      "revenue_eur": 32000000,
+      "ebitda_eur": 2600000,
+      "employees": 210,
+      "founded": 1998,
+      "ownership_type": "pe-backed",
+      "owner": {
+        "name": "Espen Haugland",
+        "title": "CEO",
+        "age": 49,
+        "tenure_years": 6,
+        "email": "espen.haugland@fjordlink-demo.no",
+        "linkedin": "https://www.linkedin.com/in/espen-haugland-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "disqualified",
+      "channel": "email",
+      "enrichment": {
+        "summary": "Fjordlink Logistikk AS provides temperature-controlled distribution and warehousing for seafood exporters, grocery wholesalers and food producers in Eastern and Southern Norway. Founded in Drammen in 1998, it operates three cold-storage terminals (Drammen, Larvik and Gardermoen) and a fleet of about 90 refrigerated trucks. Around 210 employees and revenue of roughly 32 M€. A Nordic private equity fund acquired the majority in 2025.",
+        "products": [
+          "Chilled and frozen distribution across Eastern Norway and to Gardermoen air cargo",
+          "Cold-storage warehousing in three terminals with about 38,000 pallet places",
+          "Cross-docking and export handling for salmon exporters",
+          "Fjordlink Track shipment visibility portal"
+        ],
+        "customers": [
+          "Salmon and seafood exporters shipping via Gardermoen",
+          "Grocery wholesalers and retail chains in the Oslo region",
+          "Regional dairy and meat producers",
+          "Frozen-food importers"
+        ],
+        "positioning": "Regional cold-chain specialist competing with national logistics groups on terminal density in Eastern Norway and on seafood export handling. Mid-single-digit margins typical of asset-heavy logistics.",
+        "recent_news": [
+          "Majority stake acquired by a Nordic private equity fund in March 2025; founder Bjørn Haugland retained a minority stake",
+          "New 9,000 pallet cold-storage terminal at Gardermoen commissioned in 2024",
+          "Appointed a new CFO from a listed logistics group in 2025"
+        ],
+        "leadership": "Espen Haugland, CEO since 2020, is the son of founder Bjørn Haugland, who chairs the board. The board is now controlled by the PE fund with two partners and one independent director. New CFO Kristin Aas joined in 2025.",
+        "signals": [
+          "PE fund acquired the majority in March 2025; holding period year one",
+          "Founder family retains a minority stake and a board seat",
+          "Professional CFO hired in 2025, typical of buy-and-build preparation",
+          "EBITDA margin 8 percent, capex heavy",
+          "Announced ambition to acquire regional cold-chain carriers in Western Norway"
+        ],
+        "data_gaps": [
+          "Terms of the 2025 transaction and the fund's exit horizon unknown",
+          "Fleet ownership versus leasing split unknown",
+          "Top-10 client concentration unknown"
+        ],
+        "sources": [
+          "https://www.fjordlink-demo.no",
+          "https://www.fjordlink-demo.no/om-oss",
+          "https://www.fjordlink-demo.no/nyheter"
+        ],
+        "confidence": "high",
+        "enriched_at": "2026-09-02T13:10:00Z"
+      },
+      "score": {
+        "readiness": 22,
+        "attractiveness": 68,
+        "valuation_band_eur": {
+          "low": 16000000,
+          "high": 21000000
+        },
+        "meets_minimum": true,
+        "why_now": "There is no sell-side window here. A Nordic private equity fund acquired the majority in March 2025 and is in year one of a typical four to six year holding period, with a new CFO and a stated buy-and-build plan in Western Norway. The fund is a buyer of cold-chain carriers, not a seller, until roughly 2028 to 2030. The company itself is attractive, so the right move is to park it, keep the relationship with the CEO, and consider introducing Fjordlink to our sellers as an add-on acquirer instead.",
+        "signals": [
+          {
+            "signal": "PE majority owner since March 2025",
+            "direction": "negative",
+            "weight": "high",
+            "note": "Year one of a holding period; the owner has no reason to sell."
+          },
+          {
+            "signal": "New CFO and buy-and-build ambition",
+            "direction": "negative",
+            "weight": "high",
+            "note": "Points to add-on acquisitions, not an exit."
+          },
+          {
+            "signal": "Founder family retains a minority",
+            "direction": "neutral",
+            "weight": "low",
+            "note": "The family will want liquidity at the fund's exit, not before."
+          },
+          {
+            "signal": "Terminal network including Gardermoen",
+            "direction": "positive",
+            "weight": "medium",
+            "note": "Will be attractive to strategic buyers when the fund exits."
+          },
+          {
+            "signal": "EBITDA margin 8 percent",
+            "direction": "negative",
+            "weight": "medium",
+            "note": "Asset-heavy model limits valuation multiples."
+          }
+        ],
+        "risks": [
+          "Wasted outreach effort during a PE holding period",
+          "Contacting the CEO without the board's knowledge could damage a future relationship"
+        ],
+        "recommended_timing": "not yet",
+        "scored_at": "2026-09-02T13:14:00Z"
+      },
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "PE acquired 2025, revisit 2028",
+      "created_at": "2026-09-01T08:20:00Z",
+      "updated_at": "2026-09-02T13:30:00Z"
+    },
+    {
+      "id": "c_06",
+      "name": "Fyns Grøntforædling A/S",
+      "country": "DK",
+      "city": "Odense",
+      "website": "https://www.fynsgroent-demo.dk",
+      "industry": "Food processing",
+      "revenue_eur": 27400000,
+      "ebitda_eur": 3100000,
+      "employees": 145,
+      "founded": 1978,
+      "ownership_type": "family-owned",
+      "owner": {
+        "name": "Lars Møller Kristiansen",
+        "title": "CEO & Owner (2nd generation)",
+        "age": 59,
+        "tenure_years": 31,
+        "email": "lars.kristiansen@fynsgroent-demo.dk",
+        "linkedin": "https://www.linkedin.com/in/lars-moller-kristiansen-demo"
+      },
+      "source": "Inbound enquiry",
+      "stage": "meeting_booked",
+      "channel": "email",
+      "enrichment": {
+        "summary": "Fyns Grøntforædling A/S processes and packs vegetables for Nordic retail private label and food service: peeled and cut fresh vegetables, ready-to-cook mixes and frozen root vegetables. Founded in 1978 near Odense by Knud Kristiansen and run since 1995 by his son Lars Møller Kristiansen, the company operates two plants on Funen and sources from about 60 contracted growers. Around 145 employees and revenue of 27.4 M€.",
+        "products": [
+          "FynsFresh peeled and cut vegetables for retail private label",
+          "Ready-to-cook vegetable mixes for food service and meal-kit companies",
+          "Frozen root vegetables and purees from the second plant opened in 2024",
+          "Organic line supplied to Danish and Swedish retail chains"
+        ],
+        "customers": [
+          "Two Danish grocery groups (private label, estimated 45 percent of revenue)",
+          "A Swedish retail chain (organic line, since 2022)",
+          "Food service wholesalers in Denmark and northern Germany",
+          "A Nordic meal-kit company"
+        ],
+        "positioning": "Largest independent vegetable processor on Funen with short supply lines to growers. Competes with Dutch and Polish processors on freshness and Nordic organic certification rather than on price.",
+        "recent_news": [
+          "Opened a second plant for frozen root vegetables in 2024, financed with bank debt",
+          "Signed a three-year private-label contract with a Swedish retail chain in 2025",
+          "Owner quoted in a trade magazine in 2026 saying the third generation has 'other plans'"
+        ],
+        "leadership": "Lars Møller Kristiansen, CEO and owner (59), holds 100 percent through a holding company. Sister Anne Kristiansen (57) sits on the board but is not operational. Production Director Mikkel Sørensen (52) and CFO Birgitte Lund (48) complete the management team. Neither of the owner's two children works in the company.",
+        "signals": [
+          "Owner 59, second generation, 31 years as CEO",
+          "Third generation not interested according to a 2026 trade press quote",
+          "New plant in 2024 increased debt; owner may want to de-risk",
+          "Estimated 45 percent of revenue from two Danish retail groups",
+          "Three Danish vegetable processors sold since 2023",
+          "Inbound enquiry: owner asked for a valuation indication through the website"
+        ],
+        "data_gaps": [
+          "Revenue split between fresh and frozen unknown",
+          "Top-10 client concentration unknown beyond the two retail groups",
+          "Debt level after the 2024 plant investment unknown"
+        ],
+        "sources": [
+          "https://www.fynsgroent-demo.dk",
+          "https://www.fynsgroent-demo.dk/om-os",
+          "https://www.fynsgroent-demo.dk/nyheder"
+        ],
+        "confidence": "high",
+        "enriched_at": "2026-09-03T08:30:00Z"
+      },
+      "score": {
+        "readiness": 75,
+        "attractiveness": 70,
+        "valuation_band_eur": {
+          "low": 17000000,
+          "high": 23000000
+        },
+        "meets_minimum": true,
+        "why_now": "Lars Møller Kristiansen is 59, in his 31st year as CEO, and has said in the trade press that the third generation has other plans. He contacted us himself through the website asking for a valuation indication, which is the clearest readiness signal in the pipeline. The 2024 frozen plant adds debt and capacity at the same time, so a buyer with capital can turn it into a growth story while the owner takes risk off the table. Nordic food investors are active, with three Danish vegetable processors sold since 2023.",
+        "signals": [
+          {
+            "signal": "Inbound enquiry from the owner",
+            "direction": "positive",
+            "weight": "high",
+            "note": "Owner initiated contact through the website asking about valuation."
+          },
+          {
+            "signal": "Owner age 59, no third-generation successor",
+            "direction": "positive",
+            "weight": "high",
+            "note": "Trade press quote confirms the children have other plans."
+          },
+          {
+            "signal": "New frozen plant financed with debt (2024)",
+            "direction": "positive",
+            "weight": "medium",
+            "note": "Higher leverage often makes owners open to a partner."
+          },
+          {
+            "signal": "Active Danish food processing consolidation",
+            "direction": "positive",
+            "weight": "medium",
+            "note": "Three comparable transactions since 2023."
+          },
+          {
+            "signal": "Two retail groups estimated at 45 percent of revenue",
+            "direction": "negative",
+            "weight": "medium",
+            "note": "Concentration will affect price and deal structure."
+          }
+        ],
+        "risks": [
+          "Customer concentration in two Danish retail groups",
+          "Grower contract renewals and crop risk",
+          "Frozen plant utilisation still ramping; 2025 EBITDA may be below the normalised level"
+        ],
+        "recommended_timing": "now",
+        "scored_at": "2026-09-03T08:34:00Z"
+      },
+      "matches": [
+        {
+          "buyer_id": "b_09",
+          "buyer_name": "Danish food and agri family office",
+          "fit": 89,
+          "reason": "Food processing on Funen with grower relationships is the core of the office's mandate; the size fits and a long-hold owner suits a family seller."
+        },
+        {
+          "buyer_id": "b_01",
+          "buyer_name": "Nordic lower-mid-market PE fund",
+          "fit": 78,
+          "reason": "Food processing is in scope; the fund would use the frozen plant as the growth story and add Nordic processors."
+        },
+        {
+          "buyer_id": "b_05",
+          "buyer_name": "European logistics and supply-chain buyout fund",
+          "fit": 64,
+          "reason": "Cold-chain and food supply-chain adjacency; the fund has looked at fresh-produce processors as add-ons, but it is not the core thesis."
+        }
+      ],
+      "messages": [
+        {
+          "id": "m_06_1",
+          "company_id": "c_06",
+          "channel": "email",
+          "step": 1,
+          "send_after_days": 0,
+          "language": "en",
+          "subject": "Your enquiry about a valuation indication for Fyns Grøntforædling",
+          "body": "Lars,\n\nThank you for the note you left on our website about a valuation indication. I am writing back personally because I already knew of Fyns Grøntforædling: the second plant for frozen root vegetables and the Swedish organic contract are exactly what food buyers are paying for right now.\n\nWe are working with three buyers looking for this profile: a Danish family office that invests in food and agriculture for the long term, a Nordic fund that would build a vegetable processing group around a strong anchor, and a European supply-chain investor with cold-chain interests.\n\nI run Mergero, an M&A advisory firm in Helsinki with over 500 million euros closed, all off-market and confidential.\n\nWould you have 30 minutes for a call this week or next? I am in Copenhagen on 7 October if a meeting suits you better.\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "status": "sent",
+          "humanizer": {
+            "ai_tell_score_before": 57,
+            "ai_tell_score_after": 8,
+            "flags": [
+              "\"Thank you so much for reaching out!\" — exclamation mark and over-eager opener",
+              "\"We would be thrilled to\" — marketing tone",
+              "\"unlock value\" — buzzword",
+              "Two em dashes — banned by style rules"
+            ],
+            "changes": [
+              "Acknowledged the inbound enquiry in one plain sentence",
+              "Tied the reason for writing to the frozen plant and the Swedish contract",
+              "Named three buyer types and offered a concrete meeting date in Copenhagen",
+              "Cut from 185 to 135 words"
+            ]
+          },
+          "created_at": "2026-09-03T08:45:00Z",
+          "sent_at": "2026-09-05T07:15:00Z"
+        },
+        {
+          "id": "m_06_2",
+          "company_id": "c_06",
+          "channel": "email",
+          "step": 2,
+          "send_after_days": 6,
+          "language": "en",
+          "subject": "Re: Your enquiry about a valuation indication for Fyns Grøntforædling",
+          "body": "Lars,\n\nA short follow-up to my note last week. You asked about valuation, so one concrete point: in the three Danish vegetable processing transactions since 2023 the prices ranged from five and a half to seven and a half times EBITDA, with the higher end for companies with organic lines and retail contracts of three years or more. Your Swedish contract puts you closer to the top of that range than the bottom.\n\nI can walk you through the numbers in 20 minutes, on the phone or in Copenhagen on 7 October.\n\nTimo Tontti\nManaging Partner, Mergero",
+          "status": "sent",
+          "humanizer": {
+            "ai_tell_score_before": 36,
+            "ai_tell_score_after": 5,
+            "flags": [
+              "\"Just wanted to follow up\" — filler follow-up phrase",
+              "\"robust valuation framework\" — jargon",
+              "\"Let me know your thoughts!\" — exclamation mark"
+            ],
+            "changes": [
+              "Answered the owner's original question with a concrete multiple range",
+              "Linked the range to his own contract position",
+              "Kept the ask to 20 minutes and repeated the Copenhagen date"
+            ]
+          },
+          "created_at": "2026-09-03T08:45:00Z",
+          "sent_at": "2026-09-11T07:20:00Z"
+        },
+        {
+          "id": "m_06_3",
+          "company_id": "c_06",
+          "channel": "email",
+          "step": 3,
+          "send_after_days": 14,
+          "language": "en",
+          "subject": "Re: Your enquiry about a valuation indication for Fyns Grøntforædling",
+          "body": "Lars,\n\nI will stop here so I am not filling your inbox. You came to us, so I assume the interest is real, but the timing may not be, and that is a perfectly good answer.\n\nWhenever you want the valuation indication you asked for, it takes one call, no process and no commitment. What you learn is yours to use when the time is right.\n\nThank you for reading, and good luck with the harvest season.\n\nKind regards\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "status": "approved",
+          "humanizer": {
+            "ai_tell_score_before": 42,
+            "ai_tell_score_after": 6,
+            "flags": [
+              "\"I wanted to circle back one final time\" — stock closer",
+              "\"Please do not hesitate to\" — stock phrase",
+              "\"Warm regards!\" — exclamation mark"
+            ],
+            "changes": [
+              "Acknowledged that the owner initiated contact instead of pretending otherwise",
+              "Kept one concrete offer",
+              "Removed the exclamation mark and the stock phrases"
+            ]
+          },
+          "created_at": "2026-09-03T08:45:00Z",
+          "sent_at": null
+        },
+        {
+          "id": "m_06_r1",
+          "company_id": "c_06",
+          "channel": "email",
+          "step": 0,
+          "send_after_days": 0,
+          "language": "en",
+          "subject": "Re: Your enquiry about a valuation indication for Fyns Grøntforædling",
+          "body": "Lars,\n\nThank you, and understood on confidentiality. Nothing leaves my desk without your word.\n\n7 October at 13:00 in Copenhagen is confirmed. I will book a quiet meeting room near the central station and send you the address, together with a one-page agenda and a mutual confidentiality agreement so Birgitte has it before we meet.\n\nFor the meeting I will bring the valuation walk-through with the three Danish comparables, and short anonymised descriptions of the three buyers so you can tell me which of them, if any, you would want to hear about in more detail. If you can bring the 2025 accounts and a rough view of 2026, we can make the numbers specific.\n\nSee you on the 7th.\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "status": "sent",
+          "humanizer": {
+            "ai_tell_score_before": 33,
+            "ai_tell_score_after": 4,
+            "flags": [
+              "\"Fantastic news!\" — exclamation mark and over-eager opener",
+              "Bullet list of meeting materials — style rules forbid lists",
+              "\"I look forward to a fruitful discussion\" — stock closer"
+            ],
+            "changes": [
+              "Addressed confidentiality first because the owner raised it",
+              "Confirmed date, time and logistics in one paragraph",
+              "Turned the bullet list of materials into a plain sentence"
+            ]
+          },
+          "created_at": "2026-09-14T10:06:00Z",
+          "sent_at": "2026-09-14T12:40:00Z"
+        }
+      ],
+      "conversation": [
+        {
+          "id": "e_06_1",
+          "direction": "outbound",
+          "channel": "email",
+          "text": "Lars,\n\nThank you for the note you left on our website about a valuation indication. I am writing back personally because I already knew of Fyns Grøntforædling: the second plant for frozen root vegetables and the Swedish organic contract are exactly what food buyers are paying for right now.\n\nWe are working with three buyers looking for this profile: a Danish family office that invests in food and agriculture for the long term, a Nordic fund that would build a vegetable processing group around a strong anchor, and a European supply-chain investor with cold-chain interests.\n\nI run Mergero, an M&A advisory firm in Helsinki with over 500 million euros closed, all off-market and confidential.\n\nWould you have 30 minutes for a call this week or next? I am in Copenhagen on 7 October if a meeting suits you better.\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "at": "2026-09-05T07:15:00Z",
+          "triage": null
+        },
+        {
+          "id": "e_06_2",
+          "direction": "outbound",
+          "channel": "email",
+          "text": "Lars,\n\nA short follow-up to my note last week. You asked about valuation, so one concrete point: in the three Danish vegetable processing transactions since 2023 the prices ranged from five and a half to seven and a half times EBITDA, with the higher end for companies with organic lines and retail contracts of three years or more. Your Swedish contract puts you closer to the top of that range than the bottom.\n\nI can walk you through the numbers in 20 minutes, on the phone or in Copenhagen on 7 October.\n\nTimo Tontti\nManaging Partner, Mergero",
+          "at": "2026-09-11T07:20:00Z",
+          "triage": null
+        },
+        {
+          "id": "e_06_3",
+          "direction": "inbound",
+          "channel": "email",
+          "text": "Timo,\n\nThanks for both mails, and for actually reading up on us before writing. The numbers you mention are in the range I had in mind. I am not committing to anything, but I want to understand the options before the next season starts and the bank comes back to talk about the plant loan.\n\n7 October in Copenhagen works. I have a meeting at our customer's head office in the morning and can meet you from 13:00. My CFO Birgitte will join. Please keep this strictly between us for now.\n\nLars",
+          "at": "2026-09-14T10:05:00Z",
+          "triage": {
+            "intent": "interested",
+            "sentiment": "warm",
+            "extracted_facts": [
+              {
+                "field": "timing",
+                "value": "Wants to understand options before the next season and before the bank refinancing discussion on the plant loan",
+                "confidence": "high"
+              },
+              {
+                "field": "decision_makers",
+                "value": "Lars Møller Kristiansen (100 percent owner) with CFO Birgitte Lund joining; sister on the board is not operational",
+                "confidence": "high"
+              },
+              {
+                "field": "valuation_expectation",
+                "value": "Owner considers the 5.5 to 7.5x EBITDA range acceptable",
+                "confidence": "medium"
+              },
+              {
+                "field": "confidentiality",
+                "value": "Strictly confidential; no staff involvement yet",
+                "confidence": "high"
+              }
+            ],
+            "recommended_stage": "meeting_booked",
+            "next_step": "Confirm 7 October 13:00 in Copenhagen, send a short agenda and a mutual NDA, and prepare the valuation walk-through plus anonymised profiles of the three buyers.",
+            "reply_message_id": "m_06_r1"
+          }
+        },
+        {
+          "id": "e_06_4",
+          "direction": "outbound",
+          "channel": "email",
+          "text": "Lars,\n\nThank you, and understood on confidentiality. Nothing leaves my desk without your word.\n\n7 October at 13:00 in Copenhagen is confirmed. I will book a quiet meeting room near the central station and send you the address, together with a one-page agenda and a mutual confidentiality agreement so Birgitte has it before we meet.\n\nFor the meeting I will bring the valuation walk-through with the three Danish comparables, and short anonymised descriptions of the three buyers so you can tell me which of them, if any, you would want to hear about in more detail. If you can bring the 2025 accounts and a rough view of 2026, we can make the numbers specific.\n\nSee you on the 7th.\n\nTimo Tontti\nManaging Partner, Mergero\n+358 400 274491",
+          "at": "2026-09-14T12:40:00Z",
+          "triage": null
+        }
+      ],
+      "intake": null,
+      "notes": "Intro meeting 2026-10-07 Copenhagen",
+      "created_at": "2026-09-02T14:05:00Z",
+      "updated_at": "2026-09-14T12:40:00Z"
+    },
+    {
+      "id": "c_07",
+      "name": "Vaasa Energy Services Oy",
+      "country": "FI",
+      "city": "Vaasa",
+      "website": "https://www.vaasaenergy-demo.fi",
+      "industry": "Cleantech",
+      "revenue_eur": 7200000,
+      "ebitda_eur": 900000,
+      "employees": 48,
+      "founded": 2008,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Pekka Saarinen",
+        "title": "CEO & Founder",
+        "age": 57,
+        "tenure_years": 18,
+        "email": "pekka.saarinen@vaasaenergy-demo.fi",
+        "linkedin": "https://www.linkedin.com/in/pekka-saarinen-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:02:00Z",
+      "updated_at": "2026-09-24T10:02:00Z"
+    },
+    {
+      "id": "c_08",
+      "name": "Lahden Teräsrakenne Oy",
+      "country": "FI",
+      "city": "Lahti",
+      "website": "https://www.lahdenterasrakenne-demo.fi",
+      "industry": "Engineering services",
+      "revenue_eur": 11800000,
+      "ebitda_eur": 900000,
+      "employees": 74,
+      "founded": 1982,
+      "ownership_type": "family-owned",
+      "owner": {
+        "name": "Antti Koskinen",
+        "title": "Managing Director & Owner",
+        "age": 63,
+        "tenure_years": 29,
+        "email": "antti.koskinen@lahdenterasrakenne-demo.fi",
+        "linkedin": "https://www.linkedin.com/in/antti-koskinen-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:02:00Z",
+      "updated_at": "2026-09-24T10:02:00Z"
+    },
+    {
+      "id": "c_09",
+      "name": "Codevik Oy",
+      "country": "FI",
+      "city": "Espoo",
+      "website": "https://www.codevik-demo.fi",
+      "industry": "IT services",
+      "revenue_eur": 5400000,
+      "ebitda_eur": 700000,
+      "employees": 41,
+      "founded": 2011,
+      "ownership_type": "management-owned",
+      "owner": {
+        "name": "Sanna Heikkilä",
+        "title": "CEO & Partner",
+        "age": 44,
+        "tenure_years": 9,
+        "email": "sanna.heikkila@codevik-demo.fi",
+        "linkedin": "https://www.linkedin.com/in/sanna-heikkila-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:03:00Z",
+      "updated_at": "2026-09-24T10:03:00Z"
+    },
+    {
+      "id": "c_10",
+      "name": "Keski-Suomen Elintarvike Oy",
+      "country": "FI",
+      "city": "Jyväskylä",
+      "website": "https://www.ks-elintarvike-demo.fi",
+      "industry": "Food processing",
+      "revenue_eur": 8900000,
+      "ebitda_eur": 1200000,
+      "employees": 52,
+      "founded": 1991,
+      "ownership_type": "family-owned",
+      "owner": {
+        "name": "Hannu Mäkelä",
+        "title": "CEO & Owner",
+        "age": 60,
+        "tenure_years": 24,
+        "email": "hannu.makela@ks-elintarvike-demo.fi",
+        "linkedin": "https://www.linkedin.com/in/hannu-makela-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:03:00Z",
+      "updated_at": "2026-09-24T10:03:00Z"
+    },
+    {
+      "id": "c_11",
+      "name": "Aurajoki Medical Oy",
+      "country": "FI",
+      "city": "Turku",
+      "website": "https://www.aurajokimedical-demo.fi",
+      "industry": "Medtech",
+      "revenue_eur": 4600000,
+      "ebitda_eur": 800000,
+      "employees": 29,
+      "founded": 2001,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Riitta Laine",
+        "title": "CEO & Founder",
+        "age": 62,
+        "tenure_years": 25,
+        "email": "riitta.laine@aurajokimedical-demo.fi",
+        "linkedin": "https://www.linkedin.com/in/riitta-laine-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:04:00Z",
+      "updated_at": "2026-09-24T10:04:00Z"
+    },
+    {
+      "id": "c_12",
+      "name": "Nordic Outdoor Supply Oy",
+      "country": "FI",
+      "city": "Helsinki",
+      "website": "https://www.nordicoutdoorsupply-demo.fi",
+      "industry": "E-commerce",
+      "revenue_eur": 13500000,
+      "ebitda_eur": 900000,
+      "employees": 38,
+      "founded": 2006,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Mikko Järvinen",
+        "title": "CEO & Founder",
+        "age": 48,
+        "tenure_years": 20,
+        "email": "mikko.jarvinen@nordicoutdoorsupply-demo.fi",
+        "linkedin": "https://www.linkedin.com/in/mikko-jarvinen-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:04:00Z",
+      "updated_at": "2026-09-24T10:04:00Z"
+    },
+    {
+      "id": "c_13",
+      "name": "Mälardalen Automation AB",
+      "country": "SE",
+      "city": "Västerås",
+      "website": "https://www.malardalenautomation-demo.se",
+      "industry": "Industrial equipment",
+      "revenue_eur": 16400000,
+      "ebitda_eur": 2300000,
+      "employees": 82,
+      "founded": 1996,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Anders Lindqvist",
+        "title": "VD & Grundare",
+        "age": 62,
+        "tenure_years": 30,
+        "email": "anders.lindqvist@malardalenautomation-demo.se",
+        "linkedin": "https://www.linkedin.com/in/anders-lindqvist-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:05:00Z",
+      "updated_at": "2026-09-24T10:05:00Z"
+    },
+    {
+      "id": "c_14",
+      "name": "Sydlogistik AB",
+      "country": "SE",
+      "city": "Malmö",
+      "website": "https://www.sydlogistik-demo.se",
+      "industry": "Logistics",
+      "revenue_eur": 41000000,
+      "ebitda_eur": 3300000,
+      "employees": 260,
+      "founded": 2004,
+      "ownership_type": "pe-backed",
+      "owner": {
+        "name": "Karin Nyström",
+        "title": "CEO",
+        "age": 51,
+        "tenure_years": 4,
+        "email": "karin.nystrom@sydlogistik-demo.se",
+        "linkedin": "https://www.linkedin.com/in/karin-nystrom-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:05:00Z",
+      "updated_at": "2026-09-24T10:05:00Z"
+    },
+    {
+      "id": "c_15",
+      "name": "Lönnqvist Bygg & Installation AB",
+      "country": "SE",
+      "city": "Uppsala",
+      "website": "https://www.lonnqvist-demo.se",
+      "industry": "Engineering services",
+      "revenue_eur": 22600000,
+      "ebitda_eur": 1600000,
+      "employees": 140,
+      "founded": 1979,
+      "ownership_type": "family-owned",
+      "owner": {
+        "name": "Per Lönnqvist",
+        "title": "VD & Ägare",
+        "age": 64,
+        "tenure_years": 33,
+        "email": "per.lonnqvist@lonnqvist-demo.se",
+        "linkedin": "https://www.linkedin.com/in/per-lonnqvist-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:06:00Z",
+      "updated_at": "2026-09-24T10:06:00Z"
+    },
+    {
+      "id": "c_16",
+      "name": "Vestkyst Subsea Components AS",
+      "country": "NO",
+      "city": "Bergen",
+      "website": "https://www.vestkystsubsea-demo.no",
+      "industry": "Industrial equipment",
+      "revenue_eur": 12100000,
+      "ebitda_eur": 2000000,
+      "employees": 64,
+      "founded": 1999,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Geir Solheim",
+        "title": "Daglig leder & Eier",
+        "age": 58,
+        "tenure_years": 27,
+        "email": "geir.solheim@vestkystsubsea-demo.no",
+        "linkedin": "https://www.linkedin.com/in/geir-solheim-demo"
+      },
+      "source": "Referral",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:06:00Z",
+      "updated_at": "2026-09-24T10:06:00Z"
+    },
+    {
+      "id": "c_17",
+      "name": "Nidaros Helsetjenester AS",
+      "country": "NO",
+      "city": "Trondheim",
+      "website": "https://www.nidaroshelse-demo.no",
+      "industry": "Healthcare services",
+      "revenue_eur": 6300000,
+      "ebitda_eur": 600000,
+      "employees": 72,
+      "founded": 2010,
+      "ownership_type": "management-owned",
+      "owner": {
+        "name": "Ingrid Berge",
+        "title": "CEO & Partner",
+        "age": 47,
+        "tenure_years": 10,
+        "email": "ingrid.berge@nidaroshelse-demo.no",
+        "linkedin": "https://www.linkedin.com/in/ingrid-berge-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:07:00Z",
+      "updated_at": "2026-09-24T10:07:00Z"
+    },
+    {
+      "id": "c_18",
+      "name": "Kattegat Software ApS",
+      "country": "DK",
+      "city": "Aarhus",
+      "website": "https://www.kattegatsoftware-demo.dk",
+      "industry": "B2B software",
+      "revenue_eur": 3400000,
+      "ebitda_eur": 300000,
+      "employees": 31,
+      "founded": 2014,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Søren Vestergaard",
+        "title": "CEO & Founder",
+        "age": 42,
+        "tenure_years": 12,
+        "email": "soren.vestergaard@kattegatsoftware-demo.dk",
+        "linkedin": "https://www.linkedin.com/in/soren-vestergaard-demo"
+      },
+      "source": "Inbound enquiry",
+      "stage": "new",
+      "channel": "email",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:07:00Z",
+      "updated_at": "2026-09-24T10:07:00Z"
+    },
+    {
+      "id": "c_19",
+      "name": "Ravensberg Fördertechnik GmbH",
+      "country": "DE",
+      "city": "Bielefeld",
+      "website": "https://www.ravensberg-foerdertechnik-demo.de",
+      "industry": "Industrial equipment",
+      "revenue_eur": 24800000,
+      "ebitda_eur": 2900000,
+      "employees": 150,
+      "founded": 1975,
+      "ownership_type": "family-owned",
+      "owner": {
+        "name": "Friedrich Sudbrock",
+        "title": "Geschäftsführender Gesellschafter",
+        "age": 65,
+        "tenure_years": 35,
+        "email": "friedrich.sudbrock@ravensberg-foerdertechnik-demo.de",
+        "linkedin": "https://www.linkedin.com/in/friedrich-sudbrock-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "linkedin",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:08:00Z",
+      "updated_at": "2026-09-24T10:08:00Z"
+    },
+    {
+      "id": "c_20",
+      "name": "Neckar Präzisionsteile GmbH",
+      "country": "DE",
+      "city": "Stuttgart",
+      "website": "https://www.neckar-praezision-demo.de",
+      "industry": "Manufacturing",
+      "revenue_eur": 19200000,
+      "ebitda_eur": 2100000,
+      "employees": 115,
+      "founded": 1988,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Wolfgang Kessler",
+        "title": "Geschäftsführer & Inhaber",
+        "age": 66,
+        "tenure_years": 38,
+        "email": "wolfgang.kessler@neckar-praezision-demo.de",
+        "linkedin": "https://www.linkedin.com/in/wolfgang-kessler-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "linkedin",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:08:00Z",
+      "updated_at": "2026-09-24T10:08:00Z"
+    },
+    {
+      "id": "c_21",
+      "name": "Elbwerk Business Services GmbH",
+      "country": "DE",
+      "city": "Hamburg",
+      "website": "https://www.elbwerk-services-demo.de",
+      "industry": "Business services",
+      "revenue_eur": 15600000,
+      "ebitda_eur": 2500000,
+      "employees": 120,
+      "founded": 2005,
+      "ownership_type": "pe-backed",
+      "owner": {
+        "name": "Julia Hartmann",
+        "title": "CEO",
+        "age": 45,
+        "tenure_years": 3,
+        "email": "julia.hartmann@elbwerk-services-demo.de",
+        "linkedin": "https://www.linkedin.com/in/julia-hartmann-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "linkedin",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:09:00Z",
+      "updated_at": "2026-09-24T10:09:00Z"
+    },
+    {
+      "id": "c_22",
+      "name": "Töss Medizintechnik AG",
+      "country": "CH",
+      "city": "Winterthur",
+      "website": "https://www.toess-medtech-demo.ch",
+      "industry": "Medtech",
+      "revenue_eur": 21500000,
+      "ebitda_eur": 4700000,
+      "employees": 95,
+      "founded": 1984,
+      "ownership_type": "family-owned",
+      "owner": {
+        "name": "Beat Schneider",
+        "title": "CEO & Verwaltungsratspräsident",
+        "age": 63,
+        "tenure_years": 30,
+        "email": "beat.schneider@toess-medtech-demo.ch",
+        "linkedin": "https://www.linkedin.com/in/beat-schneider-demo"
+      },
+      "source": "Referral",
+      "stage": "new",
+      "channel": "linkedin",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:09:00Z",
+      "updated_at": "2026-09-24T10:09:00Z"
+    },
+    {
+      "id": "c_23",
+      "name": "Léman Data Services SA",
+      "country": "CH",
+      "city": "Lausanne",
+      "website": "https://www.lemandata-demo.ch",
+      "industry": "IT services",
+      "revenue_eur": 9800000,
+      "ebitda_eur": 1600000,
+      "employees": 58,
+      "founded": 2007,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Nicolas Favre",
+        "title": "CEO & Fondateur",
+        "age": 55,
+        "tenure_years": 19,
+        "email": "nicolas.favre@lemandata-demo.ch",
+        "linkedin": "https://www.linkedin.com/in/nicolas-favre-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "linkedin",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:10:00Z",
+      "updated_at": "2026-09-24T10:10:00Z"
+    },
+    {
+      "id": "c_24",
+      "name": "Donautal Umwelttechnik GmbH",
+      "country": "AT",
+      "city": "Linz",
+      "website": "https://www.donautal-umwelt-demo.at",
+      "industry": "Cleantech",
+      "revenue_eur": 11400000,
+      "ebitda_eur": 1500000,
+      "employees": 68,
+      "founded": 1997,
+      "ownership_type": "founder-owned",
+      "owner": {
+        "name": "Gerhard Pichler",
+        "title": "Geschäftsführer & Gründer",
+        "age": 61,
+        "tenure_years": 29,
+        "email": "gerhard.pichler@donautal-umwelt-demo.at",
+        "linkedin": "https://www.linkedin.com/in/gerhard-pichler-demo"
+      },
+      "source": "Prospect database import",
+      "stage": "new",
+      "channel": "linkedin",
+      "enrichment": null,
+      "score": null,
+      "matches": [],
+      "messages": [],
+      "conversation": [],
+      "intake": null,
+      "notes": "",
+      "created_at": "2026-09-24T10:10:00Z",
+      "updated_at": "2026-09-24T10:10:00Z"
+    }
+  ],
+  "buyers": [
+    {
+      "id": "b_01",
+      "name": "Nordic lower-mid-market PE fund",
+      "buyer_type": "PE",
+      "sectors": [
+        "Industrial equipment",
+        "Manufacturing",
+        "Food processing",
+        "Healthcare services",
+        "Business services",
+        "Engineering services"
+      ],
+      "geographies": [
+        "FI",
+        "SE",
+        "NO",
+        "DK"
+      ],
+      "revenue_min_eur": 5000000,
+      "revenue_max_eur": 50000000,
+      "ebitda_min_eur": 800000,
+      "ebitda_max_eur": 8000000,
+      "deal_types": [
+        "majority",
+        "buyout",
+        "add-on"
+      ],
+      "thesis": "Buys majority stakes in profitable Nordic niche leaders with succession situations and builds them into platforms through add-ons. Prefers founders who stay for a two to three year handover and reinvest a minority.",
+      "active": true
+    },
+    {
+      "id": "b_02",
+      "name": "DACH industrial buyout fund",
+      "buyer_type": "PE",
+      "sectors": [
+        "Industrial equipment",
+        "Manufacturing",
+        "Cleantech",
+        "Engineering services"
+      ],
+      "geographies": [
+        "DE",
+        "AT",
+        "CH"
+      ],
+      "revenue_min_eur": 10000000,
+      "revenue_max_eur": 80000000,
+      "ebitda_min_eur": 1500000,
+      "ebitda_max_eur": 12000000,
+      "deal_types": [
+        "majority",
+        "buyout",
+        "add-on"
+      ],
+      "thesis": "Mittelstand buyouts in industrial technology, automation and environmental engineering. Looks for hidden champions with an export share above 30 percent and an aftermarket business.",
+      "active": true
+    },
+    {
+      "id": "b_03",
+      "name": "Pan-European software growth investor",
+      "buyer_type": "PE",
+      "sectors": [
+        "B2B software",
+        "IT services"
+      ],
+      "geographies": [
+        "EU",
+        "FI",
+        "SE",
+        "NO",
+        "DK",
+        "DE",
+        "AT",
+        "CH"
+      ],
+      "revenue_min_eur": 3000000,
+      "revenue_max_eur": 40000000,
+      "ebitda_min_eur": 0,
+      "ebitda_max_eur": 6000000,
+      "deal_types": [
+        "minority",
+        "growth",
+        "majority"
+      ],
+      "thesis": "Minority and majority growth investments in vertical B2B software with more than 70 percent recurring revenue. Backs founder-led companies expanding into a second and third country.",
+      "active": true
+    },
+    {
+      "id": "b_04",
+      "name": "Nordic healthcare services PE platform",
+      "buyer_type": "PE",
+      "sectors": [
+        "Healthcare services",
+        "Medtech"
+      ],
+      "geographies": [
+        "FI",
+        "SE",
+        "NO",
+        "DK"
+      ],
+      "revenue_min_eur": 5000000,
+      "revenue_max_eur": 60000000,
+      "ebitda_min_eur": 500000,
+      "ebitda_max_eur": 8000000,
+      "deal_types": [
+        "add-on",
+        "majority"
+      ],
+      "thesis": "PE-backed healthcare platform adding regional physiotherapy, rehabilitation and outpatient clinic chains in the Nordics. Keeps local brands and clinical leadership, centralises back office and procurement.",
+      "active": true
+    },
+    {
+      "id": "b_05",
+      "name": "European logistics and supply-chain buyout fund",
+      "buyer_type": "PE",
+      "sectors": [
+        "Logistics",
+        "Food processing",
+        "Business services"
+      ],
+      "geographies": [
+        "EU",
+        "FI",
+        "SE",
+        "NO",
+        "DK",
+        "DE"
+      ],
+      "revenue_min_eur": 20000000,
+      "revenue_max_eur": 150000000,
+      "ebitda_min_eur": 2000000,
+      "ebitda_max_eur": 15000000,
+      "deal_types": [
+        "majority",
+        "buyout",
+        "add-on"
+      ],
+      "thesis": "Buyouts of asset-light and cold-chain logistics providers and adjacent food supply-chain businesses in Northern Europe. Builds regional density through add-ons.",
+      "active": true
+    },
+    {
+      "id": "b_06",
+      "name": "Nordic IT services and software consolidation vehicle",
+      "buyer_type": "PE",
+      "sectors": [
+        "IT services",
+        "B2B software"
+      ],
+      "geographies": [
+        "FI",
+        "SE",
+        "NO",
+        "DK"
+      ],
+      "revenue_min_eur": 3000000,
+      "revenue_max_eur": 30000000,
+      "ebitda_min_eur": 300000,
+      "ebitda_max_eur": 4000000,
+      "deal_types": [
+        "add-on",
+        "majority"
+      ],
+      "thesis": "PE-backed group of Nordic IT services and vertical software companies acquiring add-ons of 3 to 30 M€ revenue. Founders typically roll 20 to 30 percent into the group and keep their local brand.",
+      "active": true
+    },
+    {
+      "id": "b_07",
+      "name": "Finnish evergreen family office",
+      "buyer_type": "family_office",
+      "sectors": [
+        "Industrial equipment",
+        "Manufacturing",
+        "Healthcare services",
+        "Cleantech",
+        "Engineering services"
+      ],
+      "geographies": [
+        "FI",
+        "SE"
+      ],
+      "revenue_min_eur": 5000000,
+      "revenue_max_eur": 40000000,
+      "ebitda_min_eur": 500000,
+      "ebitda_max_eur": 5000000,
+      "deal_types": [
+        "majority",
+        "minority"
+      ],
+      "thesis": "Family office of a Finnish industrial family investing its own capital with no exit horizon. Prefers majority stakes in Finnish companies with a strong regional footprint and lets management continue with long-term incentives.",
+      "active": true
+    },
+    {
+      "id": "b_08",
+      "name": "Swiss entrepreneurial family office",
+      "buyer_type": "family_office",
+      "sectors": [
+        "Medtech",
+        "Manufacturing",
+        "IT services",
+        "B2B software"
+      ],
+      "geographies": [
+        "CH",
+        "DE",
+        "AT",
+        "EU"
+      ],
+      "revenue_min_eur": 8000000,
+      "revenue_max_eur": 60000000,
+      "ebitda_min_eur": 1000000,
+      "ebitda_max_eur": 8000000,
+      "deal_types": [
+        "majority",
+        "minority"
+      ],
+      "thesis": "Second-generation entrepreneurial family investing in DACH technology and medtech companies with a 10 to 15 year horizon. Open to minority positions alongside founders and to selected European software platforms.",
+      "active": true
+    },
+    {
+      "id": "b_09",
+      "name": "Danish food and agri family office",
+      "buyer_type": "family_office",
+      "sectors": [
+        "Food processing",
+        "Logistics"
+      ],
+      "geographies": [
+        "DK",
+        "SE",
+        "NO",
+        "FI",
+        "DE"
+      ],
+      "revenue_min_eur": 10000000,
+      "revenue_max_eur": 80000000,
+      "ebitda_min_eur": 1000000,
+      "ebitda_max_eur": 10000000,
+      "deal_types": [
+        "majority",
+        "minority"
+      ],
+      "thesis": "Family office rooted in Danish agriculture investing in food processing, ingredients and food logistics across Northern Europe. Values grower relationships and retail contracts, and holds for decades.",
+      "active": true
+    },
+    {
+      "id": "b_10",
+      "name": "Listed Nordic engineering group",
+      "buyer_type": "strategic",
+      "sectors": [
+        "Industrial equipment",
+        "Engineering services",
+        "Cleantech"
+      ],
+      "geographies": [
+        "FI",
+        "SE",
+        "NO",
+        "DK",
+        "DE"
+      ],
+      "revenue_min_eur": 5000000,
+      "revenue_max_eur": 60000000,
+      "ebitda_min_eur": 500000,
+      "ebitda_max_eur": 8000000,
+      "deal_types": [
+        "add-on",
+        "majority"
+      ],
+      "thesis": "Listed engineering group with 4,000 employees acquiring service and aftermarket businesses in flow control, automation and energy efficiency. Pays for installed base and recurring service contracts, and integrates slowly.",
+      "active": true
+    },
+    {
+      "id": "b_11",
+      "name": "German IT services consolidator",
+      "buyer_type": "strategic",
+      "sectors": [
+        "IT services"
+      ],
+      "geographies": [
+        "DE",
+        "AT",
+        "CH"
+      ],
+      "revenue_min_eur": 5000000,
+      "revenue_max_eur": 50000000,
+      "ebitda_min_eur": 500000,
+      "ebitda_max_eur": 6000000,
+      "deal_types": [
+        "add-on",
+        "majority"
+      ],
+      "thesis": "PE-owned national IT services group buying regional managed-services providers and system houses in Germany, Austria and Switzerland. Keeps founders for 18 to 24 month handovers and local brands for at least three years.",
+      "active": true
+    },
+    {
+      "id": "b_12",
+      "name": "Swiss medtech group",
+      "buyer_type": "strategic",
+      "sectors": [
+        "Medtech",
+        "Healthcare services"
+      ],
+      "geographies": [
+        "CH",
+        "DE",
+        "AT",
+        "FI",
+        "SE"
+      ],
+      "revenue_min_eur": 5000000,
+      "revenue_max_eur": 80000000,
+      "ebitda_min_eur": 1000000,
+      "ebitda_max_eur": 12000000,
+      "deal_types": [
+        "add-on",
+        "majority"
+      ],
+      "thesis": "Family-controlled Swiss medtech group acquiring instrument, implant and rehabilitation device manufacturers in Europe. Mandate paused during the integration of a 2026 acquisition; expected to reopen in Q1 2027.",
+      "active": false
+    }
+  ]
+}

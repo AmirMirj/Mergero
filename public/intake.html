@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mergero · Confidential owner conversation</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="intake-page">
+    <div class="intake-card">
+      <div class="intake-header">
+        <div class="brand-mark">M</div>
+        <div>
+          <div class="title">Mergero · Confidential owner conversation</div>
+          <div class="sub" id="intake-sub">Loading…</div>
+        </div>
+        <span class="pill" id="intake-status"></span>
+      </div>
+
+      <div class="chat" id="chat" aria-live="polite"></div>
+
+      <div class="complete-state hidden" id="complete-state">✓ Thank you — summary sent to your advisor</div>
+
+      <form class="chat-input" id="chat-form">
+        <textarea id="chat-text" rows="1" placeholder="Type your answer…" autocomplete="off" required></textarea>
+        <button type="submit" class="btn btn-primary" id="chat-send">Send</button>
+      </form>
+    </div>
+    <div class="intake-foot">Private link · Your answers are shared only with your Mergero advisor. Nothing is published.</div>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+  <script src="/intake.js"></script>
+</body>
+</html>

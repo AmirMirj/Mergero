@@ -1,0 +1,12 @@
+node_modules/
+.env
+# runtime state; holds the API key pasted into Settings. DATA_DIR can point anywhere (e.g. data-test/), so match by name
+db.json
+db.json.tmp
+# third-party reference clone (contains a leaked API key); the useful parts are ported to server/research
+scraper/
+# reference clone of a separate project (its own git repo); the useful parts are ported to server/
+email-io/
+# organiser's challenge brief (third-party document with contact details) and scratch file; not part of the app
+DESCRIPTION.docx
+TASK.txt
